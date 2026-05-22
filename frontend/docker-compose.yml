@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: pdf_analytics_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pdf_analytics
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pdf_analytics_network
+
+  # Alembic Migrations
+  migrate:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: pdf_analytics_migrate
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/pdf_analytics
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: admin123!
+      ADMIN_FULL_NAME: Platform Admin
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pdf_analytics_network
+    command: sh -c "alembic upgrade head && python -m app.scripts.seed_admin"
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: pdf_analytics_backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/pdf_analytics
+      SECRET_KEY: your-secret-key-change-in-production
+      BACKEND_CORS_ORIGINS: http://localhost,http://localhost:4028,http://localhost:3000,http://127.0.0.1,http://127.0.0.1:4028,http://127.0.0.1:3000
+      OLLAMA_HOST: http://localhost:11434
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend/uploads:/app/uploads
+      - ../backend:/app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - pdf_analytics_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pdf_analytics_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    ports:
+      - "4028:4028"
+    depends_on:
+      - backend
+    networks:
+      - pdf_analytics_network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: pdf_analytics_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - pdf_analytics_network
+
+volumes:
+  postgres_data:
+
+networks:
+  pdf_analytics_network:
+    driver: bridge

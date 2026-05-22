@@ -1,0 +1,22 @@
+@import './tailwind.css';
+
+@keyframes flashGreen {
+  0% {
+    background-color: rgba(105, 240, 174, 0.3);
+  }
+  50% {
+    background-color: rgba(105, 240, 174, 0.6);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
