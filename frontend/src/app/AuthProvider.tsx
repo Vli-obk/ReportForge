@@ -20,8 +20,8 @@ export interface AuthContextType {
   logout: () => void;
 }
 
-const AUTH_TOKEN_KEY = 'pdf_analytics_token';
-const AUTH_USER_KEY = 'pdf_analytics_user';
+const AUTH_TOKEN_KEY = 'reportforge_token';
+const AUTH_USER_KEY = 'reportforge_user';
 
 function getStoredToken(): string | null {
   if (typeof window === 'undefined') return null;

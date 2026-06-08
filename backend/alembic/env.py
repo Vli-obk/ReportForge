@@ -9,6 +9,7 @@ from alembic import context
 # Import models and Base
 from app.database.session import Base
 from app.models import user, dataset, pdf_document, data_row, processing_job, ai_summary, analytics
+from app.models import financial_report, extraction_audit  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

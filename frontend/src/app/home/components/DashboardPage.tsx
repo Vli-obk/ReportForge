@@ -1,36 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { pdfAPI } from '@/lib/api';
 import { formatBytes } from '@/lib/utils';
 import { FileText, Database, ScanText, AlertCircle, HardDrive } from 'lucide-react';
-
-interface Statistics {
-  total_pdfs: number;
-  total_rows: number;
-  ocr_processed: number;
-  failed_jobs: number;
-  storage_used: number;
-}
+import { useApiQuery } from '@/hooks/useApiQuery';
+import { AIEngineStatusCard, HealthMonitoringWidget, SystemOverviewCard } from './EndpointWidgets';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Statistics | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await pdfAPI.getStatistics();
-        setStats(response.data);
-      } catch (error) {
-        console.error('Failed to fetch statistics:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  const { data: stats, loading, error } = useApiQuery('dashboard-statistics', pdfAPI.getStatistics, {
+    retries: 2,
+  });
 
   const statCards = [
     {
@@ -40,25 +19,25 @@ export default function DashboardPage() {
       color: 'var(--orange)',
     },
     {
-      title: 'Extracted Rows',
+      title: 'Lignes Extraites',
       value: stats?.total_rows || 0,
       icon: Database,
       color: 'var(--orange)',
     },
     {
-      title: 'OCR Processed',
+      title: 'OCR Traités',
       value: stats?.ocr_processed || 0,
       icon: ScanText,
       color: 'var(--orange)',
     },
     {
-      title: 'Failed Jobs',
+      title: 'Tâches Échouées',
       value: stats?.failed_jobs || 0,
       icon: AlertCircle,
       color: '#FF6B6B',
     },
     {
-      title: 'Storage Used',
+      title: 'Stockage Utilisé',
       value: formatBytes(stats?.storage_used || 0),
       icon: HardDrive,
       color: 'var(--orange)',
@@ -72,13 +51,13 @@ export default function DashboardPage() {
           className="text-4xl font-bold"
           style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
         >
-          Dashboard
+          Tableau de bord
         </h1>
         <p
           className="text-sm mt-2"
           style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
         >
-          Welcome to your PDF Analytics dashboard
+          Bienvenue sur votre tableau de bord ReportForge
         </p>
       </div>
 
@@ -91,11 +70,16 @@ export default function DashboardPage() {
           }}
         >
           <p style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
-            Loading statistics...
+            Chargement des statistiques...
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {error && (
+            <div className="rounded-lg p-6 lg:col-span-3" style={{ background: 'rgba(255, 107, 107, 0.08)', border: '1px solid rgba(255, 107, 107, 0.25)' }}>
+              <p style={{ color: '#FF6B6B', fontFamily: 'JetBrains Mono, monospace' }}>{error}</p>
+            </div>
+          )}
           {statCards.map((card, index) => {
             const Icon = card.icon;
             return (
@@ -150,6 +134,12 @@ export default function DashboardPage() {
         </div>
       )}
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+        <SystemOverviewCard />
+        <HealthMonitoringWidget />
+        <AIEngineStatusCard />
+      </div>
+
       <div
         className="mt-8 rounded-lg p-8"
         style={{
@@ -161,26 +151,26 @@ export default function DashboardPage() {
           className="text-xl font-bold mb-4"
           style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
         >
-          Quick Actions
+          Actions Rapides
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
             className="btn-primary py-3 px-6 text-sm"
             onClick={() => (window.location.href = '/home/uploads')}
           >
-            Upload PDF
+            Télécharger un PDF
           </button>
           <button
             className="btn-secondary py-3 px-6 text-sm"
             onClick={() => (window.location.href = '/home/datasets')}
           >
-            View Datasets
+            Voir les Jeux de Données
           </button>
           <button
             className="btn-secondary py-3 px-6 text-sm"
             onClick={() => (window.location.href = '/home/analytics')}
           >
-            View Analytics
+            Voir les Analytiques
           </button>
         </div>
       </div>

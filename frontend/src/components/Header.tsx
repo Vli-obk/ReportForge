@@ -18,7 +18,7 @@ export default function Header() {
         }}
       >
         <AppLogo
-          text="PDF Analytics"
+          text="ReportForge"
           iconName="DocumentChartBarIcon"
           size={28}
           className="text-aluminum font-mono font-bold tracking-tight"
@@ -32,13 +32,13 @@ export default function Header() {
             href="#categories"
             className="hover:text-aluminum transition-colors text-xs uppercase tracking-widest"
           >
-            Categories
+            Catégories
           </Link>
           <Link
             href="#leaderboard"
             className="hover:text-aluminum transition-colors text-xs uppercase tracking-widest"
           >
-            Top Models
+            Meilleurs Modèles
           </Link>
           <Link
             href="#compatibility"
@@ -58,7 +58,7 @@ export default function Header() {
           href="/home/login"
           className="btn-primary text-xs py-2.5 px-5 inline-block text-center"
         >
-          Start Free
+          Démarrer Gratuitement
         </Link>
       </div>
     </nav>

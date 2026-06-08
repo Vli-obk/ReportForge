@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from typing import Annotated, Optional
+
+from fastapi import APIRouter, Depends, Form, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import get_db
@@ -10,6 +11,24 @@ from app.api.deps import get_current_user
 
 
 router = APIRouter()
+
+
+class LoginForm:
+    def __init__(
+        self,
+        username: Annotated[str, Form()],
+        password: Annotated[str, Form()],
+        grant_type: Annotated[Optional[str], Form()] = None,
+        scope: Annotated[str, Form()] = "",
+        client_id: Annotated[Optional[str], Form()] = None,
+        client_secret: Annotated[Optional[str], Form()] = None,
+    ):
+        self.username = username
+        self.password = password
+        self.grant_type = grant_type
+        self.scopes = scope.split()
+        self.client_id = client_id
+        self.client_secret = client_secret
 
 
 @router.post("/register", response_model=User)
@@ -38,21 +57,15 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    form_data: LoginForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
     """Login user and return access token"""
-    print("--- LOGIN ATTEMPT ---", flush=True)
-    print(f"Username: '{form_data.username}'", flush=True)
-    print(f"Password: '{form_data.password}'", flush=True)
-
     result = await db.execute(select(UserModel).where(UserModel.email == form_data.username))
     user = result.scalars().first()
-    print(f"User found: {user is not None}", flush=True)
 
     if user:
         pw_ok = verify_password(form_data.password, user.hashed_password)
-        print(f"Password matches: {pw_ok}", flush=True)
         if not pw_ok:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

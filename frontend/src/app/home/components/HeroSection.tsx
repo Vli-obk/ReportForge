@@ -47,8 +47,8 @@ function LiveCounter({ target }: { target: number }) {
 const glassPanels = [
   {
     id: 1,
-    label: 'OCR Extraction',
-    sublabel: 'Tesseract · Active',
+    label: 'Extraction OCR',
+    sublabel: 'Tesseract · Actif',
     color: '#1A1A2E',
     style: { gridColumn: '1 / 3', gridRow: '1 / 3' },
     image: 'https://img.rocket.new/generatedImages/rocket_gen_img_1b66192b4-1767700391641.png',
@@ -58,8 +58,8 @@ const glassPanels = [
   },
   {
     id: 2,
-    label: 'Table Parsing',
-    sublabel: 'Pandas · Data',
+    label: 'Analyse de Tableaux',
+    sublabel: 'Pandas · Données',
     color: '#16162A',
     style: { gridColumn: '3 / 5', gridRow: '1 / 2' },
     image: 'https://img.rocket.new/generatedImages/rocket_gen_img_110bb8bb6-1765181843115.png',
@@ -69,7 +69,7 @@ const glassPanels = [
   },
   {
     id: 3,
-    label: 'AI Summary',
+    label: 'Résumé IA',
     sublabel: 'LLM · Insights',
     color: '#12122A',
     style: { gridColumn: '5 / 7', gridRow: '1 / 3' },
@@ -80,8 +80,8 @@ const glassPanels = [
   },
   {
     id: 4,
-    label: 'Entity Detection',
-    sublabel: 'NLP · Live',
+    label: 'Détection d\'Entités',
+    sublabel: 'NLP · Direct',
     color: '#1C1C30',
     style: { gridColumn: '3 / 5', gridRow: '2 / 3' },
     image: 'https://img.rocket.new/generatedImages/rocket_gen_img_1ab6dfbae-1765379263484.png',
@@ -141,7 +141,7 @@ export default function HeroSection() {
               className="pulse-dot inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle"
               style={{ background: 'var(--orange)' }}
             />
-            PDF Analytics · Updated May 2026
+            ReportForge · Updated May 2026
           </span>
         </div>
 
@@ -151,33 +151,33 @@ export default function HeroSection() {
             className="mono font-black leading-none tracking-tight mb-4"
             style={{ fontSize: 'clamp(2.5rem, 7vw, 6rem)', color: 'var(--aluminum)' }}
           >
-            <LiveCounter target={DOCUMENT_COUNT_TARGET} /> PDFs processed.
+            <LiveCounter target={DOCUMENT_COUNT_TARGET} /> PDFs traités.
           </h1>
           <h2
             className="mono font-bold leading-none tracking-tight"
             style={{ fontSize: 'clamp(1.8rem, 5vw, 4.2rem)', color: 'var(--aluminum-dim)' }}
           >
-            Uploaded. Extracted. Analyzed.
+            Téléchargés. Extraits. Analysés.
           </h2>
           <p
             className="mt-6 max-w-xl mx-auto text-base leading-relaxed"
             style={{ color: 'var(--aluminum-dim)', fontFamily: 'Manrope, sans-serif' }}
           >
-            Stop manually copying and pasting. Every PDF, scanned document, and invoice —
-            automatically extracted, structured, and analyzed with AI.
+            Arrêtez de copier-coller manuellement. Chaque PDF, document scanné et facture —
+            automatiquement extrait, structuré et analysé avec l'IA.
           </p>
         </div>
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
           <Link href="/home/login" className="btn-primary inline-block text-center cursor-pointer">
-            Start Free — Upload PDFs
+            Commencer Gratuitement — Télécharger des PDFs
           </Link>
           <Link
             href="/home/login"
             className="btn-secondary inline-block text-center cursor-pointer"
           >
-            Unlock Pro Analytics — 14 Days
+            Débloquer Analytics Pro — 14 Jours
           </Link>
         </div>
 
@@ -263,7 +263,7 @@ export default function HeroSection() {
               className="mono text-xs uppercase tracking-widest mt-1"
               style={{ color: 'var(--aluminum-dim)' }}
             >
-              Users
+              Utilisateurs
             </span>
           </div>
           <div
@@ -277,7 +277,7 @@ export default function HeroSection() {
               className="mono text-xs uppercase tracking-widest mt-1"
               style={{ color: 'var(--aluminum-dim)' }}
             >
-              Accuracy
+              Précision
             </span>
           </div>
           <div
@@ -291,7 +291,7 @@ export default function HeroSection() {
               className="mono text-xs uppercase tracking-widest mt-1"
               style={{ color: 'var(--aluminum-dim)' }}
             >
-              Manual Work
+              Travail Manuel
             </span>
           </div>
         </div>

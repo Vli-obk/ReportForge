@@ -60,10 +60,10 @@ export default function SettingsPage() {
           autoProcess: updatedUser.auto_process,
         });
       }
-      alert('Settings saved successfully!');
+      alert('Paramètres sauvegardés avec succès !');
     } catch (error) {
       console.error('Failed to save settings:', error);
-      alert('Failed to save settings. Please try again.');
+      alert('Échec de la sauvegarde. Veuillez réessayer.');
     } finally {
       setSaving(false);
     }
@@ -76,13 +76,13 @@ export default function SettingsPage() {
           className="text-4xl font-bold"
           style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
         >
-          Settings
+          Paramètres
         </h1>
         <p
           className="text-sm mt-2"
           style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
         >
-          Manage your account and preferences
+          Gérez votre compte et vos préférences
         </p>
       </div>
 
@@ -101,7 +101,7 @@ export default function SettingsPage() {
               className="text-xl font-bold"
               style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
             >
-              Profile
+              Profil
             </h2>
           </div>
           <div className="space-y-4">
@@ -125,7 +125,7 @@ export default function SettingsPage() {
                 className="block text-sm mb-2"
                 style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
               >
-                Full Name
+                Nom Complet
               </label>
               <input
                 type="text"
@@ -152,7 +152,7 @@ export default function SettingsPage() {
               className="text-xl font-bold"
               style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
             >
-              API Configuration
+              Configuration API
             </h2>
           </div>
           <div className="space-y-4">
@@ -161,7 +161,7 @@ export default function SettingsPage() {
                 className="block text-sm mb-2"
                 style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
               >
-                API Endpoint
+                Point de terminaison API
               </label>
               <input
                 type="text"
@@ -187,7 +187,7 @@ export default function SettingsPage() {
               className="text-xl font-bold"
               style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
             >
-              OCR Settings
+              Paramètres OCR
             </h2>
           </div>
           <div className="space-y-4">
@@ -197,13 +197,13 @@ export default function SettingsPage() {
                   className="text-sm font-semibold"
                   style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
                 >
-                  Enable OCR by default
+                  Activer l'OCR par défaut
                 </p>
                 <p
                   className="text-xs"
                   style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
                 >
-                  Automatically use OCR for scanned PDFs
+                  Utiliser automatiquement l'OCR pour les PDFs scannés
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -233,7 +233,7 @@ export default function SettingsPage() {
               className="text-xl font-bold"
               style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
             >
-              Upload Settings
+              Paramètres de Téléchargement
             </h2>
           </div>
           <div className="space-y-4">
@@ -242,7 +242,7 @@ export default function SettingsPage() {
                 className="block text-sm mb-2"
                 style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
               >
-                Max Upload Size (MB)
+                Taille max de téléchargement (Mo)
               </label>
               <input
                 type="number"
@@ -261,13 +261,13 @@ export default function SettingsPage() {
                   className="text-sm font-semibold"
                   style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
                 >
-                  Auto-process uploads
+                  Traitement automatique
                 </p>
                 <p
                   className="text-xs"
                   style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
                 >
-                  Automatically process PDFs after upload
+                  Traiter automatiquement les PDFs après téléchargement
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -291,7 +291,7 @@ export default function SettingsPage() {
             className="btn-primary py-3 px-6 flex items-center gap-2 disabled:opacity-50"
           >
             <Save size={18} />
-            {saving ? 'Saving...' : 'Save Settings'}
+            {saving ? 'Sauvegarde...' : 'Sauvegarder'}
           </button>
         </div>
       </div>

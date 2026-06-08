@@ -7,6 +7,7 @@ import FormInput from '@/components/FormInput';
 import FormButton from '@/components/FormButton';
 import FormCheckbox from '@/components/FormCheckbox';
 import { useAuth } from '@/app/AuthProvider';
+import { authAPI } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,19 +40,22 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const token = 'mock_token_' + Date.now();
-      const user = {
-        id: '1',
-        email: email,
-        fullName: email.split('@')[0],
-      };
-
+      const loginRes = await authAPI.login(email, password);
+      const token = loginRes.data.access_token;
       setToken(token);
-      setUser(user);
 
-      router.push('/dashboard');
+      const userRes = await authAPI.getMe();
+      const userData = userRes.data;
+      setUser({
+        id: userData.id.toString(),
+        email: userData.email,
+        fullName: userData.full_name || userData.email.split('@')[0],
+        ocrEnabled: Boolean(userData.ocr_enabled),
+        maxUploadSize: Number(userData.max_upload_size || 52428800),
+        autoProcess: Boolean(userData.auto_process),
+      });
+
+      router.push('/home/dashboard');
     } catch (error) {
       setErrors({ email: 'Login failed. Please try again.' });
     } finally {
@@ -99,7 +103,7 @@ export default function LoginPage() {
               className="text-sm"
               style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
             >
-              Sign in to your PDF Analytics account
+              Sign in to your ReportForge account
             </p>
           </div>
 

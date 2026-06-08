@@ -31,7 +31,7 @@ Category:
 ENTITY_EXTRACTION_PROMPT = """
 You are a precise data extraction agent. Extract up to 6 key entities from the report text as key-value pairs (e.g. company names, key dates, monetary sums, or major milestones).
 Respond ONLY with a valid JSON array of objects, where each object has "key" and "value" fields.
-Example: [{"key": "Company", "value": "Acme Corp"}, {"key": "Date", "value": "2026-05-18"}]
+Example: [{{"key": "Company", "value": "Acme Corp"}}, {{"key": "Date", "value": "2026-05-18"}}]
 Do not include any conversational filler, markdown formatting (like ```json), or explanations.
 
 Report Text:

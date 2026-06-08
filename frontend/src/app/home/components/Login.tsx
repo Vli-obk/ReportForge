@@ -22,10 +22,10 @@ export default function LoginPage() {
     const newErrors: { email?: string; password?: string } = {};
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Valid email required';
+      newErrors.email = 'Email valide requis';
     }
     if (!password || password.length < 6) {
-      newErrors.password = 'Password required (min 6 chars)';
+      newErrors.password = 'Mot de passe requis (min 6 caractères)';
     }
 
     setErrors(newErrors);
@@ -64,7 +64,7 @@ export default function LoginPage() {
       router.push('/home/dashboard');
     } catch (error: any) {
       console.error('Login error:', error);
-      const detail = error.response?.data?.detail || 'Login failed. Please verify credentials.';
+      const detail = error.response?.data?.detail || 'Connexion échouée. Veuillez vérifier vos identifiants.';
       setErrors({ email: detail });
     } finally {
       setLoading(false);
@@ -105,13 +105,13 @@ export default function LoginPage() {
               className="text-3xl md:text-4xl font-bold mb-2"
               style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
             >
-              Welcome Back
+              Bon Retour
             </h1>
             <p
               className="text-sm"
               style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
             >
-              Sign in to your PDF Analytics account
+              Connectez-vous à votre compte ReportForge
             </p>
           </div>
 
@@ -119,7 +119,7 @@ export default function LoginPage() {
             <FormInput
               label="Email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="vous@exemple.com"
               value={email}
               onChange={setEmail}
               error={errors.email}
@@ -127,9 +127,9 @@ export default function LoginPage() {
             />
 
             <FormInput
-              label="Password"
+              label="Mot de passe"
               type="password"
-              placeholder="Enter your password"
+              placeholder="Entrez votre mot de passe"
               value={password}
               onChange={setPassword}
               error={errors.password}
@@ -138,7 +138,7 @@ export default function LoginPage() {
 
             <div className="flex items-center justify-between">
               <FormCheckbox
-                label="Remember me"
+                label="Se souvenir de moi"
                 checked={rememberMe}
                 onChange={setRememberMe}
                 disabled={loading}
@@ -151,12 +151,12 @@ export default function LoginPage() {
                   fontFamily: 'JetBrains Mono, monospace',
                 }}
               >
-                Forgot password?
+                Mot de passe oublié ?
               </Link>
             </div>
 
             <FormButton type="submit" variant="primary" loading={loading} fullWidth>
-              Sign In
+              Se Connecter
             </FormButton>
           </form>
 
@@ -171,12 +171,12 @@ export default function LoginPage() {
                 fontFamily: 'JetBrains Mono, monospace',
               }}
             >
-              Don't have an account?{' '}
+              Pas de compte ?{' '}
               <Link
                 href="/home/register"
                 className="text-orange hover:text-orange-dim transition-colors font-semibold"
               >
-                Sign up
+                S'inscrire
               </Link>
             </p>
           </div>

@@ -20,7 +20,7 @@ export default function TopNav() {
       <div className="h-full px-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <AppLogo
-            text="PDF Analytics"
+            text="ReportForge"
             iconName="CubeTransparentIcon"
             size={24}
             className="hidden md:flex text-aluminum font-mono font-bold"
@@ -32,7 +32,7 @@ export default function TopNav() {
               fontFamily: 'JetBrains Mono, monospace',
             }}
           >
-            Dashboard
+            Tableau de bord
           </span>
         </div>
 
@@ -69,7 +69,7 @@ export default function TopNav() {
                   fontFamily: 'JetBrains Mono, monospace',
                 }}
               >
-                Profile
+                Profil
               </Link>
               <Link
                 href="/home/settings"
@@ -79,7 +79,7 @@ export default function TopNav() {
                   fontFamily: 'JetBrains Mono, monospace',
                 }}
               >
-                Settings
+                Paramètres
               </Link>
               <button
                 onClick={() => {
@@ -94,7 +94,7 @@ export default function TopNav() {
                   borderTop: '1px solid rgba(74, 74, 90, 0.4)',
                 }}
               >
-                Logout
+                Déconnexion
               </button>
             </div>
           )}

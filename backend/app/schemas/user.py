@@ -15,9 +15,7 @@ class UserSettings(BaseModel):
     ocr_enabled: bool
     max_upload_size: int
     auto_process: bool
-
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class UserCreate(UserBase):
@@ -35,8 +33,7 @@ class UserInDB(UserBase):
     is_superuser: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class User(UserInDB):

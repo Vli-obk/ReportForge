@@ -5,67 +5,67 @@ import { useEffect, useRef } from 'react';
 const categories = [
   {
     id: 'invoices',
-    label: 'Invoices',
+    label: 'Factures',
     count: 452,
     rating: 4.9,
     topPlugin: 'Line Item Extractor',
     icon: '⬛',
-    description: 'Line items, totals, vendor details, tax amounts',
+    description: 'Lignes détaillées, totaux, détails fournisseur, montants de taxes',
     color: 'rgba(255,107,43,0.08)',
     borderColor: 'rgba(255,107,43,0.25)',
   },
   {
     id: 'receipts',
-    label: 'Receipts',
+    label: 'Reçus',
     count: 328,
     rating: 4.8,
     topPlugin: 'OCR Scanner',
     icon: '◈',
-    description: 'Amounts, dates, merchant categorization',
+    description: 'Montants, dates, catégorisation marchande',
     color: 'rgba(74,74,90,0.15)',
     borderColor: 'rgba(74,74,90,0.4)',
   },
   {
     id: 'contracts',
-    label: 'Contracts',
+    label: 'Contrats',
     count: 184,
     rating: 4.7,
     topPlugin: 'Entity Parser',
     icon: '◉',
-    description: 'Clauses, signatures, named entities extraction',
+    description: "Clauses, signatures, extraction d'entités nommées",
     color: 'rgba(74,74,90,0.15)',
     borderColor: 'rgba(74,74,90,0.4)',
   },
   {
     id: 'financials',
-    label: 'Financials',
+    label: 'Finances',
     count: 684,
     rating: 4.9,
     topPlugin: 'Table Extractor',
     icon: '▦',
-    description: 'Balance sheets, P&L, complex tabular data',
+    description: 'Bilans, comptes de résultats, données tabulaires complexes',
     color: 'rgba(255,107,43,0.08)',
     borderColor: 'rgba(255,107,43,0.25)',
   },
   {
     id: 'healthcare',
-    label: 'Healthcare',
+    label: 'Santé',
     count: 215,
     rating: 4.6,
     topPlugin: 'HIPAA Redact',
     icon: '◧',
-    description: 'Patient records, lab results parsing, redaction',
+    description: 'Dossiers patients, analyse de résultats de labo, rédaction',
     color: 'rgba(74,74,90,0.15)',
     borderColor: 'rgba(74,74,90,0.4)',
   },
   {
     id: 'logistics',
-    label: 'Logistics',
+    label: 'Logistique',
     count: 163,
     rating: 4.8,
     topPlugin: 'Waybill Reader',
     icon: '◫',
-    description: 'Shipping labels, manifests, tracking extraction',
+    description: "Étiquettes d'expédition, manifestes, extraction de suivi",
     color: 'rgba(74,74,90,0.15)',
     borderColor: 'rgba(74,74,90,0.4)',
   },
@@ -122,20 +122,20 @@ export default function CategoriesSection() {
               className="mono text-xs uppercase tracking-widest"
               style={{ color: 'var(--orange)' }}
             >
-              // 01 — Document Types
+              // 01 — Types de Documents
             </span>
             <h2
               className="mono font-black text-3xl md:text-4xl mt-2"
               style={{ color: 'var(--aluminum)' }}
             >
-              Any Document Type.
+              Tout Type de Document.
             </h2>
             <p className="mt-2 text-sm" style={{ color: 'var(--aluminum-dim)' }}>
-              Built for every industry. 99% extraction accuracy across all document types.
+              Conçu pour chaque secteur. 99% de précision d'extraction pour tous les types de documents.
             </p>
           </div>
           <span className="badge-orange hidden md:inline-flex">
-            {categories.reduce((s, c) => s + c.count, 0)}k+ total processed
+            {categories.reduce((s, c) => s + c.count, 0)}k+ traités au total
           </span>
         </div>
 
@@ -161,7 +161,7 @@ export default function CategoriesSection() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <span className="badge-orange">MOST PROCESSED</span>
+                <span className="badge-orange">LE PLUS TRAITÉ</span>
                 <p
                   className="mono font-black mt-3"
                   style={{ fontSize: '4rem', lineHeight: 1, color: 'var(--aluminum)' }}
@@ -183,7 +183,7 @@ export default function CategoriesSection() {
               <div className="flex items-center justify-between mt-4">
                 <StarRating rating={categories[3].rating} />
                 <span className="mono text-xs" style={{ color: 'var(--aluminum-dim)' }}>
-                  Top Model: {categories[3].topPlugin}
+                  Meilleur Modèle : {categories[3].topPlugin}
                 </span>
               </div>
               <div className="progress-bar mt-3">

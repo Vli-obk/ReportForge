@@ -30,19 +30,19 @@ export default function RegisterPage() {
     const newErrors: any = {};
 
     if (!fullName || fullName.trim().length < 2) {
-      newErrors.fullName = 'Full name required (min 2 chars)';
+      newErrors.fullName = 'Nom complet requis (min 2 caractères)';
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Valid email required';
+      newErrors.email = 'Email valide requis';
     }
     if (!password || password.length < 6) {
-      newErrors.password = 'Password required (min 6 chars)';
+      newErrors.password = 'Mot de passe requis (min 6 caractères)';
     }
     if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
     }
     if (!agreeTOS) {
-      newErrors.tos = 'You must agree to the terms';
+      newErrors.tos = 'Vous devez accepter les conditions';
     }
 
     setErrors(newErrors);
@@ -81,13 +81,16 @@ export default function RegisterPage() {
         id: userData.id.toString(),
         email: userData.email,
         fullName: userData.full_name || userData.email.split('@')[0],
+        ocrEnabled: Boolean(userData.ocr_enabled),
+        maxUploadSize: Number(userData.max_upload_size || 52428800),
+        autoProcess: Boolean(userData.auto_process),
       });
 
       router.push('/home/dashboard');
     } catch (error: any) {
       console.error('Registration error:', error);
       const detail =
-        error.response?.data?.detail || 'Registration failed. Email might already be taken.';
+        error.response?.data?.detail || "Inscription échouée. L'email est peut-être déjà utilisé.";
       setErrors({ email: detail });
     } finally {
       setLoading(false);
@@ -128,21 +131,21 @@ export default function RegisterPage() {
               className="text-3xl md:text-4xl font-bold mb-2"
               style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
             >
-              Create Account
+              Créer un Compte
             </h1>
             <p
               className="text-sm"
               style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
             >
-              Join PDF Analytics and get started
+              Rejoignez ReportForge et commencez
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <FormInput
-              label="Full Name"
+              label="Nom Complet"
               type="text"
-              placeholder="John Doe"
+              placeholder="Jean Dupont"
               value={fullName}
               onChange={setFullName}
               error={errors.fullName}
@@ -160,9 +163,9 @@ export default function RegisterPage() {
             />
 
             <FormInput
-              label="Password"
+              label="Mot de passe"
               type="password"
-              placeholder="Enter your password"
+              placeholder="Entrez votre mot de passe"
               value={password}
               onChange={setPassword}
               error={errors.password}
@@ -170,9 +173,9 @@ export default function RegisterPage() {
             />
 
             <FormInput
-              label="Confirm Password"
+              label="Confirmer le mot de passe"
               type="password"
-              placeholder="Confirm your password"
+              placeholder="Confirmez votre mot de passe"
               value={confirmPassword}
               onChange={setConfirmPassword}
               error={errors.confirmPassword}
@@ -181,7 +184,7 @@ export default function RegisterPage() {
 
             <div>
               <FormCheckbox
-                label="I agree to the Terms of Service"
+                label="J'accepte les Conditions d'Utilisation"
                 checked={agreeTOS}
                 onChange={setAgreeTOS}
                 disabled={loading}
@@ -202,7 +205,7 @@ export default function RegisterPage() {
             </div>
 
             <FormButton type="submit" variant="primary" loading={loading} fullWidth>
-              Create Account
+              Créer un Compte
             </FormButton>
           </form>
 
@@ -217,12 +220,12 @@ export default function RegisterPage() {
                 fontFamily: 'JetBrains Mono, monospace',
               }}
             >
-              Already have an account?{' '}
+              Déjà un compte ?{' '}
               <Link
                 href="/home/login"
                 className="text-orange hover:text-orange-dim transition-colors font-semibold"
               >
-                Sign in
+                Se connecter
               </Link>
             </p>
           </div>

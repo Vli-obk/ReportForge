@@ -3,28 +3,28 @@
 import { useRef, useEffect, useState } from 'react';
 
 const freeFeatures = [
-  'Process up to 100 PDFs/month',
-  'Basic OCR extraction',
-  'Standard table parsing',
-  'Export to CSV / JSON',
-  'Dashboard analytics',
+  'Traiter jusqu\'à 100 PDFs/mois',
+  'Extraction OCR basique',
+  'Analyse de tableaux standard',
+  'Export vers CSV / JSON',
+  'Analytiques du tableau de bord',
 ];
 
 const proFeatures = [
-  'Unlimited PDF processing',
-  'Advanced AI Summary & Insights',
-  'Named Entity Recognition (NER)',
-  'Handwriting & scanned doc OCR',
-  'Custom extraction templates',
-  'API access for automation',
-  'Priority support channel',
+  'Traitement de PDFs illimité',
+  'Résumé IA avancé et Insights',
+  'Reconnaissance d\'Entités Nommées (REN)',
+  'OCR pour écriture manuscrite et docs scannés',
+  'Modèles d\'extraction personnalisés',
+  'Accès API pour l\'automatisation',
+  'Canal de support prioritaire',
 ];
 
 const proStats = [
-  { label: 'Avg time saved/doc', value: '1.5h' },
-  { label: 'Extraction accuracy', value: '99%' },
-  { label: 'Supported doc types', value: '1,240+' },
-  { label: 'Pro users', value: '4.8k' },
+  { label: 'Temps moy. économisé/doc', value: '1.5h' },
+  { label: 'Précision d\'extraction', value: '99%' },
+  { label: 'Types de docs supportés', value: '1 240+' },
+  { label: 'Utilisateurs Pro', value: '4.8k' },
 ];
 
 export default function ProUnlockSection() {
@@ -63,16 +63,16 @@ export default function ProUnlockSection() {
             className="mono text-xs uppercase tracking-widest"
             style={{ color: 'var(--orange)' }}
           >
-            // 04 — Pro Analytics Layer
+            // 04 — Couche Analytics Pro
           </span>
           <h2
             className="mono font-black text-3xl md:text-4xl mt-2"
             style={{ color: 'var(--aluminum)' }}
           >
-            The Data You Actually Need.
+            Les Données Dont Vous Avez Besoin.
           </h2>
           <p className="mt-2 text-sm" style={{ color: 'var(--aluminum-dim)' }}>
-            Free gets you started. Pro gives you the AI intelligence to automate everything.
+            Gratuit pour commencer. Pro vous donne l'intelligence IA pour tout automatiser.
           </p>
         </div>
 
@@ -89,9 +89,9 @@ export default function ProUnlockSection() {
               {/* Free */}
               <div className="p-6">
                 <div className="flex items-center gap-2 mb-5">
-                  <span className="tag-pill">FREE</span>
+                  <span className="tag-pill">GRATUIT</span>
                   <span className="mono text-xs" style={{ color: 'var(--aluminum-dim)' }}>
-                    Always
+                    Toujours
                   </span>
                 </div>
                 <ul className="space-y-3">
@@ -160,10 +160,10 @@ export default function ProUnlockSection() {
           >
             <div className="p-5 border-b" style={{ borderColor: 'rgba(74,74,90,0.4)' }}>
               <p className="mono font-black text-base" style={{ color: 'var(--aluminum)' }}>
-                Start Pro Trial
+                Démarrer l'Essai Pro
               </p>
               <p className="mono text-xs mt-1" style={{ color: 'var(--aluminum-dim)' }}>
-                14 days free. No credit card.
+                14 jours gratuits. Sans carte bancaire.
               </p>
             </div>
             <div className="flex-1 p-5">
@@ -179,10 +179,10 @@ export default function ProUnlockSection() {
                     ✓
                   </div>
                   <p className="mono font-bold text-sm" style={{ color: 'var(--orange)' }}>
-                    You're in.
+                    C'est parti.
                   </p>
                   <p className="mono text-xs" style={{ color: 'var(--aluminum-dim)' }}>
-                    Check your inbox — Pro access link incoming.
+                    Vérifiez votre boîte mail — lien d'accès Pro en route.
                   </p>
                 </div>
               ) : (
@@ -194,6 +194,7 @@ export default function ProUnlockSection() {
                     >
                       Email
                     </label>
+
                     <input
                       type="email"
                       required
@@ -208,7 +209,7 @@ export default function ProUnlockSection() {
                       className="mono text-xs uppercase tracking-widest block mb-2"
                       style={{ color: 'var(--aluminum-dim)' }}
                     >
-                      Primary Use Case
+                      Cas d'Usage Principal
                     </label>
                     <div className="relative">
                       <select
@@ -217,10 +218,10 @@ export default function ProUnlockSection() {
                         onChange={(e) => setUseCase(e.target.value)}
                         className="select-field"
                       >
-                        <option value="">Select one</option>
-                        <option value="data-analyst">Data Analyst</option>
-                        <option value="finance">Finance Team</option>
-                        <option value="operations">Operations / Legal</option>
+                        <option value="">Sélectionner</option>
+                        <option value="data-analyst">Analyste de Données</option>
+                        <option value="finance">Équipe Finance</option>
+                        <option value="operations">Opérations / Juridique</option>
                       </select>
                       <span
                         className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none mono text-xs"
@@ -231,13 +232,13 @@ export default function ProUnlockSection() {
                     </div>
                   </div>
                   <button type="submit" className="btn-primary w-full py-3">
-                    Start Pro Trial — 14 Days
+                    Démarrer l'Essai Pro — 14 Jours
                   </button>
                   <p
                     className="mono text-xs text-center"
                     style={{ color: 'var(--titanium-light)' }}
                   >
-                    No CC · Cancel anytime · Ships same day
+                    Sans CB · Annuler à tout moment · Accès immédiat
                   </p>
                 </form>
               )}
@@ -247,7 +248,7 @@ export default function ProUnlockSection() {
               style={{ borderColor: 'rgba(74,74,90,0.3)', background: 'rgba(255,107,43,0.03)' }}
             >
               <p className="mono text-xs" style={{ color: 'var(--aluminum-dim)' }}>
-                4,800+ teams already on Pro. Avg rating:{' '}
+                4 800+ équipes déjà sur Pro. Note moyenne :{' '}
                 <span style={{ color: 'var(--orange)' }}>★ 4.9</span>
               </p>
             </div>

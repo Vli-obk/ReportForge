@@ -6,7 +6,7 @@ from typing import Optional, Any, Union
 class Settings(BaseSettings):
     # API Settings
     API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "PDF Analytics Platform"
+    PROJECT_NAME: str = "ReportForge"
     VERSION: str = "1.0.0"
     
     # Security
@@ -52,10 +52,25 @@ class Settings(BaseSettings):
     
     # OCR Settings
     TESSERACT_CMD: Optional[str] = None  # Path to tesseract executable if not in PATH
-    
-    # Ollama Local AI Settings
-    OLLAMA_URL: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "phi3"
+
+    # Gemini API Settings
+    GEMINI_API_URL: str = "https://generativelanguage.googleapis.com"
+    GEMINI_API_KEY: str = ""
+    GEMINI_API_KEYS: str = ""  # comma-separated list of keys for rotation
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_API_VERSION: str = "v1beta"
+
+    @property
+    def gemini_key_pool(self) -> list[str]:
+        """All Gemini keys deduplicated, GEMINI_API_KEY always included first."""
+        keys: list[str] = []
+        if self.GEMINI_API_KEY:
+            keys.append(self.GEMINI_API_KEY)
+        for k in self.GEMINI_API_KEYS.split(","):
+            k = k.strip()
+            if k and k not in keys:
+                keys.append(k)
+        return keys
     
     class Config:
         env_file = ".env"

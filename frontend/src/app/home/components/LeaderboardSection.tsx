@@ -7,7 +7,7 @@ const topPipelines = [
   {
     rank: 1,
     name: 'Invoice OCR Model',
-    category: 'Invoices / Receipts',
+    category: 'Factures / Reçus',
     processed: '1.2M',
     rating: 4.9,
     change: '+210k',
@@ -20,7 +20,7 @@ const topPipelines = [
   {
     rank: 2,
     name: 'Table Extractor v2',
-    category: 'Financials',
+    category: 'Finances',
     processed: '842k',
     rating: 4.9,
     change: '+184k',
@@ -33,7 +33,7 @@ const topPipelines = [
   {
     rank: 3,
     name: 'Legal Clause Parser',
-    category: 'Contracts',
+    category: 'Contrats',
     processed: '654k',
     rating: 4.8,
     change: '+134k',
@@ -46,7 +46,7 @@ const topPipelines = [
   {
     rank: 4,
     name: 'HIPAA PII Redactor',
-    category: 'Healthcare',
+    category: 'Santé',
     processed: '521k',
     rating: 4.7,
     change: '+92k',
@@ -59,7 +59,7 @@ const topPipelines = [
   {
     rank: 5,
     name: 'Waybill Scanner',
-    category: 'Logistics',
+    category: 'Logistique',
     processed: '419k',
     rating: 4.6,
     change: '+124k',
@@ -75,15 +75,15 @@ const risingModels = [
   {
     name: 'Gemini Vision Pro',
     growth: '+184%',
-    week: 'this week',
+    week: 'cette semaine',
     bars: [30, 45, 38, 62, 55, 78, 84],
   },
-  { name: 'GPT-4o Parser', growth: '+161%', week: 'this week', bars: [20, 35, 42, 38, 55, 60, 61] },
-  { name: 'Claude Sonnet', growth: '+147%', week: 'this week', bars: [40, 38, 44, 41, 48, 45, 47] },
+  { name: 'GPT-4o Parser', growth: '+161%', week: 'cette semaine', bars: [20, 35, 42, 38, 55, 60, 61] },
+  { name: 'Claude Sonnet', growth: '+147%', week: 'cette semaine', bars: [40, 38, 44, 41, 48, 45, 47] },
   {
     name: 'Llama 3 Instruct',
     growth: '+139%',
-    week: 'this week',
+    week: 'cette semaine',
     bars: [25, 28, 30, 34, 32, 37, 39],
   },
 ];
@@ -141,13 +141,13 @@ export default function LeaderboardSection() {
             className="mono text-xs uppercase tracking-widest"
             style={{ color: 'var(--orange)' }}
           >
-            // 02 — Ecosystem Report
+            // 02 — Rapport de l'Écosystème
           </span>
           <h2
             className="mono font-black text-3xl md:text-4xl mt-2"
             style={{ color: 'var(--aluminum)' }}
           >
-            This Month's Extractions.
+            Les Extractions du Mois.
           </h2>
         </div>
 
@@ -160,7 +160,7 @@ export default function LeaderboardSection() {
             <div className="p-5 border-b" style={{ borderColor: 'rgba(74,74,90,0.4)' }}>
               <div className="flex items-center justify-between">
                 <span className="mono font-bold text-sm" style={{ color: 'var(--aluminum)' }}>
-                  Most Processed — May 2026
+                  Les Plus Traités — Mai 2026
                 </span>
                 <span className="badge-orange">LIVE</span>
               </div>
@@ -237,7 +237,7 @@ export default function LeaderboardSection() {
             </div>
             <div className="p-4 border-t" style={{ borderColor: 'rgba(74,74,90,0.3)' }}>
               <button className="btn-secondary text-xs py-2 px-4 w-full">
-                View All 1487 Datasets →
+                Voir Tous les 1487 Jeux de Données →
               </button>
             </div>
           </div>
@@ -250,9 +250,9 @@ export default function LeaderboardSection() {
             <div className="p-5 border-b" style={{ borderColor: 'rgba(74,74,90,0.4)' }}>
               <div className="flex items-center justify-between">
                 <span className="mono font-bold text-sm" style={{ color: 'var(--aluminum)' }}>
-                  Rising ↑
+                  En Hausse ↑
                 </span>
-                <span className="badge-orange">WoW Growth</span>
+                <span className="badge-orange">Croissance SdS</span>
               </div>
             </div>
             <div className="flex-1 p-5 space-y-5">
@@ -282,8 +282,7 @@ export default function LeaderboardSection() {
               style={{ borderColor: 'rgba(74,74,90,0.3)', background: 'rgba(255,107,43,0.04)' }}
             >
               <p className="mono text-xs" style={{ color: 'var(--aluminum-dim)' }}>
-                <span style={{ color: 'var(--orange)' }}>Pro:</span> Accuracy tracking + confidence
-                score benchmarks
+                <span style={{ color: 'var(--orange)' }}>Pro :</span> Suivi de précision + benchmarks de score de confiance
               </p>
             </div>
           </div>

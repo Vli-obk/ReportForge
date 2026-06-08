@@ -1,23 +1,39 @@
 import axios from 'axios';
+import type {
+  AIAnalytics,
+  AISummary,
+  ApiRootInfo,
+  DataRow,
+  Dataset,
+  GeminiExtractRequest,
+  GeminiExtractResponse,
+  GeminiHealth,
+  PDFDocument,
+  PipelineHealth,
+  ProcessingJob,
+  Statistics,
+} from './api-types';
 
-const configuredBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
-const API_BASE_URL = configuredBaseUrl && configuredBaseUrl.length > 0 ? configuredBaseUrl : '/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 120000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
 // Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('pdf_analytics_token');
+const addAuthToken = (config: any) => {
+  const token = localStorage.getItem('reportforge_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+};
+
+api.interceptors.request.use(addAuthToken);
 
 // Handle errors
 api.interceptors.response.use(
@@ -26,16 +42,21 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const url = error.config?.url || '';
     const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register');
-    const hasStoredToken = typeof window !== 'undefined' && !!localStorage.getItem('pdf_analytics_token');
+    const hasStoredToken = typeof window !== 'undefined' && !!localStorage.getItem('reportforge_token');
 
     if (status === 401 && hasStoredToken && !isAuthRoute) {
-      localStorage.removeItem('pdf_analytics_token');
-      localStorage.removeItem('pdf_analytics_user');
+      localStorage.removeItem('reportforge_token');
+      localStorage.removeItem('reportforge_user');
       window.location.href = '/home/login';
     }
     return Promise.reject(error);
   }
 );
+export const systemAPI = {
+  getOverview: (signal?: AbortSignal) => api.get<ApiRootInfo>('/overview', { signal }),
+
+  getHealth: (signal?: AbortSignal) => api.get<PipelineHealth>('/pipeline/health', { signal }),
+};
 
 export const authAPI = {
   register: (data: { email: string; full_name: string; password: string }) =>
@@ -75,42 +96,61 @@ export const pdfAPI = {
     });
   },
 
-  getAll: (skip: number = 0, limit: number = 100) => api.get(`/pdfs?skip=${skip}&limit=${limit}`),
+  getAll: (skip: number = 0, limit: number = 100, signal?: AbortSignal) =>
+    api.get<PDFDocument[]>(`/pdfs?skip=${skip}&limit=${limit}`, { signal }),
 
-  getById: (id: number) => api.get(`/pdfs/${id}`),
+  getById: (id: number, signal?: AbortSignal) => api.get<PDFDocument>(`/pdfs/${id}`, { signal }),
 
   delete: (id: number) => api.delete(`/pdfs/${id}`),
 
-  getStatistics: () => api.get('/pdfs/statistics/overview'),
+  getStatistics: (signal?: AbortSignal) => api.get<Statistics>('/dashboard/statistics', { signal }),
+
+  geminiExtract: (docId: number) =>
+    api.post<GeminiExtractResponse>(`/pdfs/${docId}/gemini-extract`),
 };
 
 export const datasetAPI = {
-  getAll: (skip: number = 0, limit: number = 100) =>
-    api.get(`/datasets?skip=${skip}&limit=${limit}`),
+  getAll: (skip: number = 0, limit: number = 100, signal?: AbortSignal) =>
+    api.get<Dataset[]>(`/datasets?skip=${skip}&limit=${limit}`, { signal }),
 
-  getById: (id: number) => api.get(`/datasets/${id}`),
+  getById: (id: number, signal?: AbortSignal) => api.get<Dataset>(`/datasets/${id}`, { signal }),
 
-  getRows: (id: number, skip: number = 0, limit: number = 100) =>
-    api.get(`/datasets/${id}/rows?skip=${skip}&limit=${limit}`),
+  getRows: (id: number, skip: number = 0, limit: number = 100, signal?: AbortSignal) =>
+    api.get<DataRow[]>(`/datasets/${id}/rows?skip=${skip}&limit=${limit}`, { signal }),
 
   delete: (id: number) => api.delete(`/datasets/${id}`),
 };
 
 export const pipelineAPI = {
-  getJobs: (skip: number = 0, limit: number = 100) =>
-    api.get(`/pipeline/jobs?skip=${skip}&limit=${limit}`),
+  getJobs: (skip: number = 0, limit: number = 100, signal?: AbortSignal) =>
+    api.get<ProcessingJob[]>(`/pipeline/jobs?skip=${skip}&limit=${limit}`, { signal }),
 
-  getJob: (id: number) => api.get(`/pipeline/jobs/${id}`),
+  getJob: (id: number, signal?: AbortSignal) =>
+    api.get<ProcessingJob>(`/pipeline/jobs/${id}`, { signal }),
 
-  getHealth: () => api.get('/pipeline/health'),
+  getHealth: (signal?: AbortSignal) => api.get<PipelineHealth>('/pipeline/health', { signal }),
 };
 
 export const aiAPI = {
-  getSummary: (docId: number) => api.get(`/pdfs/${docId}/ai-summary`),
+  getSummary: (docId: number, signal?: AbortSignal) =>
+    api.get<AISummary>(`/pdfs/${docId}/ai-summary`, { signal }),
 
-  getAnalytics: (docId: number) => api.get(`/pdfs/${docId}/analytics`),
+  getAnalytics: (docId: number, signal?: AbortSignal) =>
+    api.get<AIAnalytics>(`/pdfs/${docId}/analytics`, { signal }),
 
-  triggerAI: (docId: number) => api.post(`/pdfs/${docId}/trigger-ai`),
+  triggerAI: (docId: number) => api.post<AISummary>(`/pdfs/${docId}/trigger-ai`),
+};
+
+export const financialReportsAPI = {
+  getAll: (signal?: AbortSignal) =>
+    api.get<import('./api-types').FinancialReport[]>('/financial-reports/?limit=200', { signal }),
+};
+
+export const geminiAPI = {
+  getHealth: (signal?: AbortSignal) => api.get<GeminiHealth>('/gemini/health', { signal }),
+
+  extract: (data: GeminiExtractRequest, signal?: AbortSignal) =>
+    api.post<GeminiExtractResponse>('/gemini/extract', data, { signal }),
 };
 
 export default api;

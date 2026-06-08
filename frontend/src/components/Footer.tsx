@@ -41,21 +41,21 @@ export default function Footer() {
             className="text-xs uppercase tracking-widest transition-colors hover:text-aluminum"
             style={{ color: 'var(--aluminum-dim)' }}
           >
-            Status
+            Statut
           </Link>
           <Link
             href="#"
             className="text-xs uppercase tracking-widest transition-colors hover:text-aluminum"
             style={{ color: 'var(--aluminum-dim)' }}
           >
-            Privacy
+            Confidentialité
           </Link>
           <Link
             href="#"
             className="text-xs uppercase tracking-widest transition-colors hover:text-aluminum"
             style={{ color: 'var(--aluminum-dim)' }}
           >
-            Terms
+            Conditions
           </Link>
         </div>
 

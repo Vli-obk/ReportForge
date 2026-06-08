@@ -1,62 +1,135 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { pdfAPI, datasetAPI, aiAPI } from '@/lib/api';
+import { useState, useEffect, useMemo } from 'react';
+import { pdfAPI, datasetAPI, aiAPI, financialReportsAPI } from '@/lib/api';
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
+  BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, Database, FileText, Activity, Brain, Tag } from 'lucide-react';
+import {
+  TrendingUp, Database, FileText, Activity, Brain,
+  CheckCircle, XCircle, DollarSign, Target, BarChart2, Layers,
+} from 'lucide-react';
+import type { FinancialReport, PDFDocument, Dataset, Statistics } from '@/lib/api-types';
 
-interface Statistics {
-  total_pdfs: number;
-  total_rows: number;
-  ocr_processed: number;
-  failed_jobs: number;
-  storage_used: number;
+// ─── helpers ────────────────────────────────────────────────────────────────
+
+const fmt = (n: number | null | undefined): string => {
+  if (n == null) return 'N/A';
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `${(n / 1e12).toFixed(1)}T`;
+  if (abs >= 1e9)  return `${(n / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6)  return `${(n / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3)  return `${(n / 1e3).toFixed(1)}K`;
+  return n.toFixed(0);
+};
+
+const CARD_BG   = 'rgba(26, 26, 46, 0.6)';
+const CARD_BR   = '1px solid rgba(74, 74, 90, 0.4)';
+const GRID_CLR  = 'rgba(74, 74, 90, 0.25)';
+const TIP_STYLE = {
+  background: 'rgba(15, 15, 27, 0.95)',
+  border: '1px solid rgba(74, 74, 90, 0.5)',
+  borderRadius: '8px',
+  color: '#D0D0D8',
+  fontFamily: 'JetBrains Mono, monospace',
+  fontSize: '12px',
+};
+const AXIS_STYLE = { fontFamily: 'JetBrains Mono, monospace', fontSize: '11px' };
+const ORANGE = '#FF6B2B';
+const STEEL  = '#4A4A5A';
+const TEAL   = '#2BB5A0';
+const RED    = '#E05C5C';
+const PIE_COLORS = [ORANGE, RED, '#8A8A9A', TEAL];
+
+// ─── sub-components ─────────────────────────────────────────────────────────
+
+function KpiCard({
+  icon: Icon, label, value, sub, color = ORANGE,
+}: {
+  icon: React.ElementType; label: string; value: string | number; sub?: string; color?: string;
+}) {
+  return (
+    <div className="rounded-xl p-5 flex flex-col gap-3" style={{ background: CARD_BG, border: CARD_BR }}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-widest" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>
+          {label}
+        </span>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${color}18` }}>
+          <Icon size={16} style={{ color }} />
+        </div>
+      </div>
+      <div>
+        <div className="text-3xl font-bold" style={{ color: '#D0D0D8', fontFamily: 'Manrope, sans-serif' }}>
+          {value}
+        </div>
+        {sub && (
+          <div className="text-xs mt-1" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>
+            {sub}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-export default function AnalyticsPage() {
-  const [stats, setStats] = useState<Statistics | null>(null);
-  const [datasets, setDatasets] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+function SectionHeader({ icon: Icon, title, sub }: { icon: React.ElementType; title: string; sub?: string }) {
+  return (
+    <div className="flex items-center gap-3 mb-5">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${ORANGE}18` }}>
+        <Icon size={18} style={{ color: ORANGE }} />
+      </div>
+      <div>
+        <h2 className="text-base font-bold" style={{ color: '#D0D0D8', fontFamily: 'Manrope, sans-serif' }}>
+          {title}
+        </h2>
+        {sub && <p className="text-xs" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>{sub}</p>}
+      </div>
+    </div>
+  );
+}
 
-  // AI Insights States
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="flex items-center justify-center h-48" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>
+      {message}
+    </div>
+  );
+}
+
+// ─── main component ──────────────────────────────────────────────────────────
+
+export default function AnalyticsPage() {
+  const [stats,            setStats]            = useState<Statistics | null>(null);
+  const [datasets,         setDatasets]         = useState<Dataset[]>([]);
+  const [documents,        setDocuments]        = useState<PDFDocument[]>([]);
+  const [financialReports, setFinancialReports] = useState<FinancialReport[]>([]);
+  const [loading,          setLoading]          = useState(true);
+
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
-  const [aiAnalytics, setAiAnalytics] = useState<any | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAnalytics,   setAiAnalytics]   = useState<any | null>(null);
+  const [aiLoading,     setAiLoading]     = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const load = async () => {
       try {
-        const [statsResponse, datasetsResponse, documentsResponse] = await Promise.all([
+        const [s, d, docs, fr] = await Promise.all([
           pdfAPI.getStatistics(),
           datasetAPI.getAll(),
           pdfAPI.getAll(),
+          financialReportsAPI.getAll(),
         ]);
-        setStats(statsResponse.data);
-        setDatasets(datasetsResponse.data);
-        setDocuments(documentsResponse.data);
-      } catch (error) {
-        console.error('Failed to fetch analytics data:', error);
+        setStats(s.data);
+        setDatasets(d.data);
+        setDocuments(docs.data);
+        setFinancialReports(fr.data);
+      } catch (err) {
+        console.error('Analytics fetch error:', err);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchData();
+    load();
   }, []);
 
   const handleDocSelect = async (docId: number) => {
@@ -66,501 +139,360 @@ export default function AnalyticsPage() {
     try {
       const res = await aiAPI.getAnalytics(docId);
       setAiAnalytics(res.data);
-    } catch (error) {
-      console.error('Failed to fetch AI report analytics:', error);
-    } finally {
-      setAiLoading(false);
-    }
+    } catch { /* ignored */ }
+    finally { setAiLoading(false); }
   };
 
-  const COLORS = ['#FF6B2B', '#4A4A5A', '#D0D0D8', '#8A8A9A', '#1A1A2E'];
+  // ── computed chart data ───────────────────────────────────────────────────
 
-  const pieData = [
-    { name: 'Completed', value: stats?.total_pdfs || 0 },
-    { name: 'OCR Processed', value: stats?.ocr_processed || 0 },
-    { name: 'Failed', value: stats?.failed_jobs || 0 },
-  ];
+  const statusData = useMemo(() => {
+    const completed  = documents.filter(d => d.status === 'completed').length;
+    const failed     = documents.filter(d => d.status === 'failed').length;
+    const processing = documents.filter(d => d.status === 'processing' || d.status === 'pending').length;
+    return [
+      { name: 'Completed',  value: completed  },
+      { name: 'Failed',     value: failed     },
+      { name: 'Processing', value: processing },
+    ].filter(d => d.value > 0);
+  }, [documents]);
 
-  const barData = datasets.slice(0, 10).map((dataset) => ({
-    name: dataset.name.substring(0, 15),
-    rows: dataset.row_count,
-  }));
+  const activityData = useMemo(() => {
+    const byDate: Record<string, number> = {};
+    documents.forEach(doc => {
+      const date = doc.created_at?.split('T')[0];
+      if (date) byDate[date] = (byDate[date] || 0) + 1;
+    });
+    return Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-20)
+      .map(([date, count]) => ({ date: date.slice(5), uploads: count }));
+  }, [documents]);
 
-  const lineData = datasets.slice(0, 5).map((dataset, idx) => ({
-    name: `Doc ${idx + 1}`,
-    pdfs: Math.max(0, Math.round((dataset.row_count || 0) / 50)),
-    rows: dataset.row_count || 0,
-  }));
+  const revenueData = useMemo(() => {
+    const byCompany: Record<string, number> = {};
+    financialReports.forEach(r => {
+      if (r.company_name && r.revenue != null) {
+        if (!byCompany[r.company_name] || r.revenue > byCompany[r.company_name])
+          byCompany[r.company_name] = r.revenue;
+      }
+    });
+    return Object.entries(byCompany)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 8)
+      .map(([name, revenue]) => ({
+        name: name.length > 22 ? name.slice(0, 20) + '…' : name,
+        revenue: +(revenue / 1e9).toFixed(2),
+      }));
+  }, [financialReports]);
+
+  const coverageData = useMemo(() => {
+    if (!financialReports.length) return [];
+    const total = financialReports.length;
+    const fields: { key: keyof FinancialReport; label: string }[] = [
+      { key: 'revenue',            label: 'Revenue'       },
+      { key: 'net_income',         label: 'Net Income'    },
+      { key: 'total_assets',       label: 'Total Assets'  },
+      { key: 'total_liabilities',  label: 'Liabilities'   },
+      { key: 'gross_profit',       label: 'Gross Profit'  },
+      { key: 'ebitda',             label: 'EBITDA'        },
+      { key: 'operating_cash_flow',label: 'Op. Cash Flow' },
+      { key: 'shareholders_equity',label: 'Equity'        },
+    ];
+    return fields
+      .map(({ key, label }) => ({
+        name: label,
+        pct: Math.round(financialReports.filter(r => r[key] != null).length / total * 100),
+      }))
+      .sort((a, b) => b.pct - a.pct);
+  }, [financialReports]);
+
+  const datasetData = useMemo(() =>
+    datasets
+      .filter(d => (d.row_count || 0) > 0)
+      .sort((a, b) => (b.row_count || 0) - (a.row_count || 0))
+      .slice(0, 10)
+      .map(d => ({
+        name: d.name.length > 18 ? d.name.slice(0, 16) + '…' : d.name,
+        rows: d.row_count || 0,
+      })),
+  [datasets]);
+
+  const completedFR      = financialReports.filter(r => r.processing_status === 'completed');
+  const avgConfidence    = completedFR.length
+    ? Math.round(completedFR.reduce((s, r) => s + r.confidence_score, 0) / completedFR.length * 100)
+    : null;
+  const successRate = documents.length
+    ? Math.round(documents.filter(d => d.status === 'completed').length / documents.length * 100)
+    : null;
+
+  // ── loading skeleton ──────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <div className="h-8 w-40 rounded-lg animate-pulse mb-2" style={{ background: 'rgba(74,74,90,0.3)' }} />
+          <div className="h-4 w-64 rounded animate-pulse"         style={{ background: 'rgba(74,74,90,0.2)' }} />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-xl h-28 animate-pulse" style={{ background: 'rgba(74,74,90,0.2)' }} />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-xl h-72 animate-pulse" style={{ background: 'rgba(74,74,90,0.2)' }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1
-          className="text-4xl font-bold"
-          style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
-        >
-          Analytics
+    <div className="space-y-8">
+
+      {/* Page header */}
+      <div>
+        <h1 className="text-3xl font-bold" style={{ color: '#D0D0D8', fontFamily: 'Manrope, sans-serif' }}>
+          Analytiques
         </h1>
-        <p
-          className="text-sm mt-2"
-          style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
-        >
-          Visualize your PDF extraction data
+        <p className="text-sm mt-1" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>
+          Performance de traitement et aperçu des données financières extraites
         </p>
       </div>
 
-      {loading ? (
-        <div
-          className="rounded-lg p-8"
-          style={{
-            background: 'rgba(26, 26, 46, 0.5)',
-            border: '1px solid rgba(74, 74, 90, 0.4)',
-          }}
-        >
-          <p style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
-            Loading analytics...
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Processing Status Pie Chart */}
-          <div
-            className="rounded-lg p-6"
-            style={{
-              background: 'rgba(26, 26, 46, 0.5)',
-              border: '1px solid rgba(74, 74, 90, 0.4)',
-            }}
-          >
-            <div className="flex items-center gap-2 mb-6">
-              <Activity size={24} style={{ color: 'var(--orange)' }} />
-              <h2
-                className="text-xl font-bold"
-                style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
-              >
-                Processing Status
-              </h2>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
+      {/* ── KPI cards ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard icon={FileText}   label="Documents"         value={stats?.total_pdfs   ?? 0} sub="total téléchargé" />
+        <KpiCard icon={CheckCircle} label="Taux de Réussite"     value={successRate != null ? `${successRate}%` : '—'} sub="terminés / total" color={TEAL} />
+        <KpiCard icon={Database}   label="Lignes Extraites"    value={fmt(stats?.total_rows ?? 0)} sub="dans tous les jeux de données" color="#8A8A9A" />
+        <KpiCard icon={Target}     label="Rapports Financiers" value={financialReports.length}
+          sub={avgConfidence != null ? `confiance moy. ${avgConfidence}%` : 'traités'} color={TEAL} />
+      </div>
+
+      {/* ── Processing Status + Upload Activity ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Donut — processing status */}
+        <div className="rounded-xl p-6" style={{ background: CARD_BG, border: CARD_BR }}>
+          <SectionHeader icon={Activity} title="Statut de Traitement" sub="répartition de tous les documents" />
+          {statusData.length === 0 ? (
+            <EmptyChart message="Aucun document pour l'instant" />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
+                <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={95}
+                  paddingAngle={3} dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
+                  labelLine={false}
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {statusData.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: 'rgba(26, 26, 46, 0.9)',
-                    border: '1px solid rgba(74, 74, 90, 0.4)',
-                    borderRadius: '8px',
-                    color: 'var(--aluminum)',
-                  }}
-                />
+                <Tooltip contentStyle={TIP_STYLE} />
               </PieChart>
             </ResponsiveContainer>
-          </div>
+          )}
+        </div>
 
-          {/* Dataset Row Counts Bar Chart */}
-          <div
-            className="rounded-lg p-6"
-            style={{
-              background: 'rgba(26, 26, 46, 0.5)',
-              border: '1px solid rgba(74, 74, 90, 0.4)',
-            }}
-          >
-            <div className="flex items-center gap-2 mb-6">
-              <Database size={24} style={{ color: 'var(--orange)' }} />
-              <h2
-                className="text-xl font-bold"
-                style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
-              >
-                Dataset Row Counts
-              </h2>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(74, 74, 90, 0.4)" />
-                <XAxis
-                  dataKey="name"
-                  stroke="var(--aluminum-dim)"
-                  style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}
-                />
-                <YAxis
-                  stroke="var(--aluminum-dim)"
-                  style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: 'rgba(26, 26, 46, 0.9)',
-                    border: '1px solid rgba(74, 74, 90, 0.4)',
-                    borderRadius: '8px',
-                    color: 'var(--aluminum)',
-                  }}
-                />
-                <Bar dataKey="rows" fill="#FF6B2B" radius={[4, 4, 0, 0]} />
-              </BarChart>
+        {/* Area — upload activity */}
+        <div className="rounded-xl p-6" style={{ background: CARD_BG, border: CARD_BR }}>
+          <SectionHeader icon={TrendingUp} title="Activité de Téléchargement" sub="documents au fil du temps" />
+          {activityData.length === 0 ? (
+            <EmptyChart message="Aucun historique de téléchargement" />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={activityData} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
+                <defs>
+                  <linearGradient id="uploadGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={ORANGE} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={ORANGE} stopOpacity={0}   />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke={GRID_CLR} />
+                <XAxis dataKey="date" tick={{ ...AXIS_STYLE, fill: '#8A8A9A' }} />
+                <YAxis allowDecimals={false} tick={{ ...AXIS_STYLE, fill: '#8A8A9A' }} />
+                <Tooltip contentStyle={TIP_STYLE} />
+                <Area type="monotone" dataKey="uploads" stroke={ORANGE} strokeWidth={2}
+                  fill="url(#uploadGrad)" dot={{ fill: ORANGE, r: 3 }} name="Uploads" />
+              </AreaChart>
             </ResponsiveContainer>
-          </div>
+          )}
+        </div>
+      </div>
 
-          {/* Extraction Trends Line Chart */}
-          <div
-            className="rounded-lg p-6 lg:col-span-2"
-            style={{
-              background: 'rgba(26, 26, 46, 0.5)',
-              border: '1px solid rgba(74, 74, 90, 0.4)',
-            }}
-          >
-            <div className="flex items-center gap-2 mb-6">
-              <TrendingUp size={24} style={{ color: 'var(--orange)' }} />
-              <h2
-                className="text-xl font-bold"
-                style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
-              >
-                Extraction Trends
-              </h2>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={lineData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(74, 74, 90, 0.4)" />
-                <XAxis
-                  dataKey="name"
-                  stroke="var(--aluminum-dim)"
-                  style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}
-                />
-                <YAxis
-                  stroke="var(--aluminum-dim)"
-                  style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: 'rgba(26, 26, 46, 0.9)',
-                    border: '1px solid rgba(74, 74, 90, 0.4)',
-                    borderRadius: '8px',
-                    color: 'var(--aluminum)',
-                  }}
-                />
-                <Legend
-                  wrapperStyle={{
-                    color: 'var(--aluminum)',
-                    fontFamily: 'JetBrains Mono, monospace',
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="pdfs"
-                  stroke="#FF6B2B"
-                  strokeWidth={2}
-                  dot={{ fill: '#FF6B2B', strokeWidth: 2, r: 4 }}
-                  name="PDFs Processed"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="rows"
-                  stroke="#4A4A5A"
-                  strokeWidth={2}
-                  dot={{ fill: '#4A4A5A', strokeWidth: 2, r: 4 }}
-                  name="Rows Extracted"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+      {/* ── Financial Reports section (only when data exists) ── */}
+      {financialReports.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* Summary Stats */}
-          <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div
-              className="rounded-lg p-4 text-center"
-              style={{
-                background: 'rgba(26, 26, 46, 0.5)',
-                border: '1px solid rgba(74, 74, 90, 0.4)',
-              }}
-            >
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <FileText size={20} style={{ color: 'var(--orange)' }} />
-                <span
-                  className="text-2xl font-bold"
-                  style={{ color: 'var(--aluminum)', fontFamily: 'JetBrains Mono, monospace' }}
-                >
-                  {stats?.total_pdfs || 0}
-                </span>
-              </div>
-              <p
-                className="text-xs uppercase tracking-wider"
-                style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
-              >
-                Total PDFs
-              </p>
-            </div>
-
-            <div
-              className="rounded-lg p-4 text-center"
-              style={{
-                background: 'rgba(26, 26, 46, 0.5)',
-                border: '1px solid rgba(74, 74, 90, 0.4)',
-              }}
-            >
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Database size={20} style={{ color: 'var(--orange)' }} />
-                <span
-                  className="text-2xl font-bold"
-                  style={{ color: 'var(--aluminum)', fontFamily: 'JetBrains Mono, monospace' }}
-                >
-                  {stats?.total_rows || 0}
-                </span>
-              </div>
-              <p
-                className="text-xs uppercase tracking-wider"
-                style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
-              >
-                Total Rows
-              </p>
-            </div>
-
-            <div
-              className="rounded-lg p-4 text-center"
-              style={{
-                background: 'rgba(26, 26, 46, 0.5)',
-                border: '1px solid rgba(74, 74, 90, 0.4)',
-              }}
-            >
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Activity size={20} style={{ color: 'var(--orange)' }} />
-                <span
-                  className="text-2xl font-bold"
-                  style={{ color: 'var(--aluminum)', fontFamily: 'JetBrains Mono, monospace' }}
-                >
-                  {stats?.ocr_processed || 0}
-                </span>
-              </div>
-              <p
-                className="text-xs uppercase tracking-wider"
-                style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
-              >
-                OCR Processed
-              </p>
-            </div>
-
-            <div
-              className="rounded-lg p-4 text-center"
-              style={{
-                background: 'rgba(26, 26, 46, 0.5)',
-                border: '1px solid rgba(74, 74, 90, 0.4)',
-              }}
-            >
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <TrendingUp size={20} style={{ color: 'var(--orange)' }} />
-                <span
-                  className="text-2xl font-bold"
-                  style={{ color: 'var(--aluminum)', fontFamily: 'JetBrains Mono, monospace' }}
-                >
-                  {datasets.length}
-                </span>
-              </div>
-              <p
-                className="text-xs uppercase tracking-wider"
-                style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
-              >
-                Datasets
-              </p>
-            </div>
-          </div>
-
-          {/* AI Insights Section */}
-          <div
-            className="rounded-lg p-6 lg:col-span-2 mt-2"
-            style={{
-              background: 'rgba(26, 26, 46, 0.5)',
-              border: '1px solid rgba(74, 74, 90, 0.4)',
-              fontFamily: 'Manrope, sans-serif',
-            }}
-          >
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-2">
-                <Brain size={24} style={{ color: 'var(--orange)' }} />
-                <h2 className="text-xl font-bold" style={{ color: 'var(--aluminum)' }}>
-                  AI Report Analytics & Insights
-                </h2>
-              </div>
-
-              {/* Dropdown Selector */}
-              <div className="relative min-w-[260px]">
-                <select
-                  value={selectedDocId || ''}
-                  onChange={(e) => handleDocSelect(Number(e.target.value))}
-                  className="input-field w-full appearance-none pr-10 cursor-pointer rounded-lg px-4 py-2"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(74, 74, 90, 0.3)',
-                    color: 'var(--aluminum)',
-                    fontFamily: 'JetBrains Mono, monospace',
-                    fontSize: '13px',
-                  }}
-                >
-                  <option value="" disabled style={{ background: '#0F0F1B' }}>
-                    Select Report to analyze...
-                  </option>
-                  {documents
-                    .filter((doc: any) => doc.status === 'completed')
-                    .map((doc) => (
-                      <option key={doc.id} value={doc.id} style={{ background: '#0F0F1B' }}>
-                        {doc.original_filename}
-                      </option>
-                    ))}
-                </select>
-              </div>
-            </div>
-
-            {aiLoading ? (
-              <div className="flex flex-col items-center justify-center py-16 space-y-4">
-                <div
-                  className="animate-spin rounded-full h-8 w-8 border-b-2"
-                  style={{ borderColor: 'var(--orange)' }}
-                />
-                <p
-                  className="text-xs uppercase tracking-widest"
-                  style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
-                >
-                  retrieving business insights...
-                </p>
-              </div>
-            ) : aiAnalytics ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* KPIs List */}
-                <div className="md:col-span-1 space-y-4">
-                  <h3
-                    className="text-xs uppercase font-bold tracking-widest"
-                    style={{
-                      color: 'var(--aluminum-dim)',
-                      fontFamily: 'JetBrains Mono, monospace',
-                    }}
-                  >
-                    Extracted KPIs
-                  </h3>
-                  <div className="space-y-3">
-                    {Object.entries(aiAnalytics.kpis || {}).map(([key, val]: any, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-lg flex flex-col justify-center transition-all"
-                        style={{
-                          background: 'rgba(255, 107, 43, 0.04)',
-                          border: '1px solid rgba(255, 107, 43, 0.12)',
-                        }}
-                      >
-                        <span
-                          className="text-[10px] uppercase tracking-wider font-bold"
-                          style={{
-                            fontFamily: 'JetBrains Mono, monospace',
-                            color: 'var(--orange)',
-                          }}
-                        >
-                          {key}
-                        </span>
-                        <span
-                          className="text-lg font-bold mt-1"
-                          style={{ color: 'var(--aluminum)' }}
-                        >
-                          {val}
-                        </span>
-                      </div>
-                    ))}
-                    {Object.keys(aiAnalytics.kpis || {}).length === 0 && (
-                      <p
-                        className="text-sm"
-                        style={{
-                          color: 'var(--aluminum-dim)',
-                          fontFamily: 'JetBrains Mono, monospace',
-                        }}
-                      >
-                        No structured KPIs extracted.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Strategic Insights */}
-                <div className="md:col-span-2 space-y-4">
-                  <h3
-                    className="text-xs uppercase font-bold tracking-widest"
-                    style={{
-                      color: 'var(--aluminum-dim)',
-                      fontFamily: 'JetBrains Mono, monospace',
-                    }}
-                  >
-                    Strategic Recommendations
-                  </h3>
-                  <div className="space-y-3">
-                    {(aiAnalytics.insights || []).map((insight: string, idx: number) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-lg flex items-start gap-3 transition-all"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.015)',
-                          border: '1px solid rgba(74, 74, 90, 0.15)',
-                        }}
-                      >
-                        <div
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-                          style={{ background: 'rgba(255, 107, 43, 0.15)', color: 'var(--orange)' }}
-                        >
-                          {idx + 1}
-                        </div>
-                        <p className="text-sm leading-relaxed" style={{ color: 'var(--aluminum)' }}>
-                          {insight}
-                        </p>
-                      </div>
-                    ))}
-                    {(aiAnalytics.insights || []).length === 0 && (
-                      <p
-                        className="text-sm"
-                        style={{
-                          color: 'var(--aluminum-dim)',
-                          fontFamily: 'JetBrains Mono, monospace',
-                        }}
-                      >
-                        No insights generated for this report.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
+          {/* Bar — revenue by company */}
+          <div className="rounded-xl p-6" style={{ background: CARD_BG, border: CARD_BR }}>
+            <SectionHeader icon={DollarSign} title="Revenus par Entreprise" sub="valeur la plus élevée rapportée (en milliards)" />
+            {revenueData.length === 0 ? (
+              <EmptyChart message="Aucune donnée de revenus extraite" />
             ) : (
-              <div
-                className="rounded-lg p-12 text-center"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.01)',
-                  border: '1px solid rgba(74, 74, 90, 0.15)',
-                }}
-              >
-                <Brain
-                  size={48}
-                  className="mx-auto mb-4 opacity-30"
-                  style={{ color: 'var(--orange)' }}
-                />
-                <h3
-                  className="text-lg font-bold mb-2"
-                  style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
-                >
-                  Select a Report to View AI Insights
-                </h3>
-                <p
-                  className="text-sm max-w-md mx-auto"
-                  style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
-                >
-                  Choose one of your completed reports from the dropdown selector to load fully
-                  automated strategic business analytics and key performance metrics.
-                </p>
-              </div>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={revenueData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_CLR} horizontal={false} />
+                  <XAxis type="number" tick={{ ...AXIS_STYLE, fill: '#8A8A9A' }}
+                    tickFormatter={v => `$${v}B`} />
+                  <YAxis type="category" dataKey="name" width={110}
+                    tick={{ ...AXIS_STYLE, fill: '#D0D0D8' }} />
+                  <Tooltip contentStyle={TIP_STYLE}
+                    formatter={(v: number) => [`$${v}B`, 'Revenue']} />
+                  <Bar dataKey="revenue" fill={ORANGE} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             )}
+          </div>
+
+          {/* Bar — metric coverage */}
+          <div className="rounded-xl p-6" style={{ background: CARD_BG, border: CARD_BR }}>
+            <SectionHeader icon={BarChart2} title="Couverture d'Extraction"
+              sub={`% des ${financialReports.length} rapport${financialReports.length > 1 ? 's' : ''} avec chaque métrique`} />
+            {coverageData.length === 0 ? (
+              <EmptyChart message="Aucune donnée de couverture" />
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={coverageData} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={GRID_CLR} horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tick={{ ...AXIS_STYLE, fill: '#8A8A9A' }}
+                    tickFormatter={v => `${v}%`} />
+                  <YAxis type="category" dataKey="name" width={90}
+                    tick={{ ...AXIS_STYLE, fill: '#D0D0D8' }} />
+                  <Tooltip contentStyle={TIP_STYLE}
+                    formatter={(v: number) => [`${v}%`, 'Coverage']} />
+                  <Bar dataKey="pct" radius={[0, 4, 4, 0]}
+                    fill={TEAL}
+                    background={{ fill: 'rgba(255,255,255,0.03)', radius: 4 }} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Financial reports stats row */}
+          <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: 'Terminés', value: completedFR.length, icon: CheckCircle, color: TEAL },
+              { label: 'Échoués',    value: financialReports.filter(r => r.processing_status === 'failed').length, icon: XCircle, color: RED },
+              { label: 'Avec Revenus', value: financialReports.filter(r => r.revenue != null).length, icon: DollarSign, color: ORANGE },
+              { label: 'Confiance Moy.', value: avgConfidence != null ? `${avgConfidence}%` : '—', icon: Target, color: '#8A8A9A' },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="rounded-xl p-4 flex items-center gap-3" style={{ background: CARD_BG, border: CARD_BR }}>
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${color}18` }}>
+                  <Icon size={16} style={{ color }} />
+                </div>
+                <div>
+                  <div className="text-xl font-bold" style={{ color: '#D0D0D8', fontFamily: 'Manrope, sans-serif' }}>{value}</div>
+                  <div className="text-xs" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>{label}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
+
+      {/* ── Dataset sizes ── */}
+      <div className="rounded-xl p-6" style={{ background: CARD_BG, border: CARD_BR }}>
+        <SectionHeader icon={Layers} title="Principaux Jeux de Données par Taille" sub="nombre de lignes par jeu de données extrait" />
+        {datasetData.length === 0 ? (
+          <EmptyChart message="Aucun jeu de données généré" />
+        ) : (
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={datasetData} margin={{ top: 4, right: 8, bottom: 40, left: -10 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_CLR} />
+              <XAxis dataKey="name" tick={{ ...AXIS_STYLE, fill: '#D0D0D8' }} angle={-30} textAnchor="end" interval={0} />
+              <YAxis tick={{ ...AXIS_STYLE, fill: '#8A8A9A' }} />
+              <Tooltip contentStyle={TIP_STYLE} formatter={(v: number) => [v.toLocaleString(), 'Rows']} />
+              <Bar dataKey="rows" fill={ORANGE} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* ── AI Insights ── */}
+      <div className="rounded-xl p-6" style={{ background: CARD_BG, border: CARD_BR }}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <SectionHeader icon={Brain} title="Insights IA sur les Rapports" sub="sélectionnez un document terminé" />
+          <select
+            value={selectedDocId || ''}
+            onChange={e => handleDocSelect(Number(e.target.value))}
+            className="rounded-lg px-4 py-2 text-sm min-w-[240px] appearance-none cursor-pointer"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(74,74,90,0.4)',
+              color: '#D0D0D8',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: '13px',
+            }}
+          >
+            <option value="" disabled style={{ background: '#0F0F1B' }}>
+              Sélectionner un rapport...
+            </option>
+            {documents.filter(d => d.status === 'completed').map(doc => (
+              <option key={doc.id} value={doc.id} style={{ background: '#0F0F1B' }}>
+                {doc.original_filename}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {aiLoading ? (
+          <div className="flex flex-col items-center gap-3 py-14">
+            <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: `${ORANGE} transparent transparent transparent` }} />
+            <p style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>
+              récupération des insights...
+            </p>
+          </div>
+        ) : aiAnalytics ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-widest font-bold" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>
+                KPIs
+              </p>
+              {Object.entries(aiAnalytics.kpis || {}).length === 0 ? (
+                <p style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>Aucun KPI trouvé.</p>
+              ) : (
+                Object.entries(aiAnalytics.kpis || {}).map(([key, val]: any, i) => (
+                  <div key={i} className="rounded-lg p-3" style={{ background: `${ORANGE}08`, border: `1px solid ${ORANGE}20` }}>
+                    <div className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color: ORANGE, fontFamily: 'JetBrains Mono, monospace' }}>{key}</div>
+                    <div className="text-base font-bold" style={{ color: '#D0D0D8' }}>{String(val)}</div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="md:col-span-2 space-y-3">
+              <p className="text-xs uppercase tracking-widest font-bold" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>
+                Insights Stratégiques
+              </p>
+              {(aiAnalytics.insights || []).length === 0 ? (
+                <p style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace', fontSize: '12px' }}>Aucun insight généré.</p>
+              ) : (
+                (aiAnalytics.insights || []).map((insight: string, i: number) => (
+                  <div key={i} className="flex items-start gap-3 rounded-lg p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(74,74,90,0.2)' }}>
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
+                      style={{ background: `${ORANGE}20`, color: ORANGE }}>
+                      {i + 1}
+                    </div>
+                    <p className="text-sm leading-relaxed" style={{ color: '#D0D0D8' }}>{insight}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-14 gap-3">
+            <Brain size={40} style={{ color: '#4A4A5A' }} />
+            <p style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace', fontSize: '13px' }}>
+              Sélectionnez un rapport terminé ci-dessus pour charger les insights IA
+            </p>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

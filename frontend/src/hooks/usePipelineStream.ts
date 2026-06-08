@@ -23,7 +23,7 @@ export function usePipelineStream() {
   const justCompletedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const token = localStorage.getItem('pdf_analytics_token');
+    const token = localStorage.getItem('reportforge_token');
     if (!token) {
       setConnected(false);
       return;

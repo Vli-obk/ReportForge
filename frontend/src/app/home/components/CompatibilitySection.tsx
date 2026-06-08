@@ -50,14 +50,14 @@ const edgeColors = {
 };
 
 const conflictPairs = [
-  { a: 'pdfplumber + Scans', issue: 'Missing OCR preprocessing layer', severity: 'MEDIUM' },
-  { a: 'Tesseract + Tables', issue: 'Poor column boundary detection', severity: 'HIGH' },
+  { a: 'pdfplumber + Scans', issue: 'Couche de prétraitement OCR manquante', severity: 'MEDIUM' },
+  { a: 'Tesseract + Tables', issue: 'Détection des limites de colonnes médiocre', severity: 'HIGH' },
 ];
 
 const compatibleStacks = [
-  { stack: 'Tesseract + Pandas + LLM', label: 'Standard Invoice Stack', installs: '8.2k' },
-  { stack: 'pdfplumber + Pandas + Postgres', label: 'High-Speed Text Stack', installs: '5.7k' },
-  { stack: 'OpenCV + Tesseract + Spacy', label: 'Legacy Scan Stack', installs: '4.1k' },
+  { stack: 'Tesseract + Pandas + LLM', label: 'Pile Standard Factures', installs: '8.2k' },
+  { stack: 'pdfplumber + Pandas + Postgres', label: 'Pile Texte Haute Vitesse', installs: '5.7k' },
+  { stack: 'OpenCV + Tesseract + Spacy', label: 'Pile Scan Héritée', installs: '4.1k' },
 ];
 
 export default function CompatibilitySection() {
@@ -102,17 +102,16 @@ export default function CompatibilitySection() {
             className="mono text-xs uppercase tracking-widest"
             style={{ color: 'var(--orange)' }}
           >
-            // 03 — Pipeline Integrations
+            // 03 — Intégrations de Pipeline
           </span>
           <h2
             className="mono font-black text-3xl md:text-4xl mt-2"
             style={{ color: 'var(--aluminum)' }}
           >
-            Pipeline Compatibility Matrix.
+            Matrice de Compatibilité des Pipelines.
           </h2>
           <p className="mt-2 text-sm" style={{ color: 'var(--aluminum-dim)' }}>
-            Hover an extraction node to see compatible models. Bottlenecks flagged before you build
-            your pipeline.
+            Survolez un nœud d'extraction pour voir les modèles compatibles. Les goulots d'étranglement signalés avant la création de votre pipeline.
           </p>
         </div>
 
@@ -127,7 +126,7 @@ export default function CompatibilitySection() {
               style={{ borderColor: 'rgba(74,74,90,0.4)' }}
             >
               <span className="mono font-bold text-sm" style={{ color: 'var(--aluminum)' }}>
-                Model Pipeline Graph
+                Graphe des Pipelines de Modèles
               </span>
               <div className="flex items-center gap-4 text-xs mono">
                 <span className="flex items-center gap-1.5">
@@ -145,7 +144,7 @@ export default function CompatibilitySection() {
                     className="inline-block w-3 h-0.5 rounded"
                     style={{ background: 'rgba(255,80,80,0.7)' }}
                   />
-                  Conflict
+                  Conflit
                 </span>
                 <span
                   className="flex items-center gap-1.5"
@@ -155,7 +154,7 @@ export default function CompatibilitySection() {
                     className="inline-block w-3 h-0.5 rounded"
                     style={{ background: 'rgba(74,74,90,0.7)' }}
                   />
-                  Neutral
+                  Neutre
                 </span>
               </div>
             </div>
@@ -245,10 +244,9 @@ export default function CompatibilitySection() {
               }}
             >
               <p className="mono text-xs" style={{ color: 'var(--aluminum-dim)' }}>
-                <span style={{ color: 'var(--orange)' }}>Pro:</span> Full bottleneck reports + root
-                cause analysis for 1487 datasets
+                <span style={{ color: 'var(--orange)' }}>Pro :</span> Rapports de goulots d'étranglement + analyse des causes pour 1487 jeux de données
               </p>
-              <button className="btn-primary py-2 px-4 text-xs">Unlock Pro</button>
+              <button className="btn-primary py-2 px-4 text-xs">Débloquer Pro</button>
             </div>
           </div>
 
@@ -257,7 +255,7 @@ export default function CompatibilitySection() {
             {/* Known conflicts */}
             <div className="bento-card reveal flex-1 p-5" style={{ background: 'var(--graphite)' }}>
               <p className="mono font-bold text-sm mb-4" style={{ color: 'var(--aluminum)' }}>
-                Known Conflicts
+                Conflits Connus
               </p>
               <div className="space-y-3">
                 {conflictPairs.map((c, i) => (
@@ -297,7 +295,7 @@ export default function CompatibilitySection() {
             {/* Proven stacks */}
             <div className="bento-card reveal p-5" style={{ background: 'var(--graphite)' }}>
               <p className="mono font-bold text-sm mb-4" style={{ color: 'var(--aluminum)' }}>
-                Proven Stacks ✓
+                Piles Éprouvées ✓
               </p>
               <div className="space-y-3">
                 {compatibleStacks.map((s, i) => (
@@ -316,7 +314,7 @@ export default function CompatibilitySection() {
                       {s.stack}
                     </p>
                     <p className="mono text-xs mt-1" style={{ color: '#88FF88', opacity: 0.7 }}>
-                      {s.installs} teams using this
+                      {s.installs} équipes utilisent ceci
                     </p>
                   </div>
                 ))}

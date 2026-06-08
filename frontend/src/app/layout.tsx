@@ -2,6 +2,7 @@ import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import '../styles/index.css';
 import { AuthProvider } from '@/app/AuthProvider';
+import { ApiQueryProvider } from '@/hooks/useApiQuery';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -9,8 +10,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'PDF Analytics - Document Intelligence Platform',
-  description: 'Advanced PDF analytics and document processing platform',
+  title: 'ReportForge - Document Intelligence Platform',
+  description: 'Intelligent financial report processing platform',
   icons: {
     icon: [{ url: '/assets/images/app_logo.png', type: 'image/x-icon' }],
   },
@@ -24,7 +25,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <ApiQueryProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ApiQueryProvider>
       </body>
     </html>
   );

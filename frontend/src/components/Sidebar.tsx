@@ -9,12 +9,12 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
 
   const navItems = [
-    { label: 'Dashboard', href: '/home/dashboard' },
-    { label: 'Uploads', href: '/home/uploads' },
-    { label: 'Datasets', href: '/home/datasets' },
-    { label: 'Analytics', href: '/home/analytics' },
+    { label: 'Tableau de bord', href: '/home/dashboard' },
+    { label: 'Téléchargements', href: '/home/uploads' },
+    { label: 'Jeux de données', href: '/home/datasets' },
+    { label: 'Analytiques', href: '/home/analytics' },
     { label: 'Pipeline', href: '/home/pipeline' },
-    { label: 'Settings', href: '/home/settings' },
+    { label: 'Paramètres', href: '/home/settings' },
   ];
 
   const isActive = (href: string) => {

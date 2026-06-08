@@ -15,7 +15,7 @@ export default function ForgotPasswordPage() {
     const newErrors: { email?: string } = {};
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Valid email required';
+      newErrors.email = 'Email valide requis';
     }
 
     setErrors(newErrors);
@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
       await new Promise((resolve) => setTimeout(resolve, 800));
       setSent(true);
     } catch (error) {
-      setErrors({ email: 'Failed to send reset email. Please try again.' });
+      setErrors({ email: "Échec de l'envoi du mail de réinitialisation. Veuillez réessayer." });
     } finally {
       setLoading(false);
     }
@@ -73,17 +73,17 @@ export default function ForgotPasswordPage() {
               className="text-3xl md:text-4xl font-bold mb-4"
               style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
             >
-              Check Your Email
+              Vérifiez Votre Email
             </h1>
             <p
               className="text-sm mb-6"
               style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
             >
-              We've sent a password reset link to <strong>{email}</strong>
+              Nous avons envoyé un lien de réinitialisation à <strong>{email}</strong>
             </p>
 
             <Link href="/home/login" className="btn-primary inline-block">
-              Back to Login
+              Retour à la connexion
             </Link>
           </div>
         </div>
@@ -125,13 +125,13 @@ export default function ForgotPasswordPage() {
               className="text-3xl md:text-4xl font-bold mb-2"
               style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}
             >
-              Reset Password
+              Réinitialiser le mot de passe
             </h1>
             <p
               className="text-sm"
               style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}
             >
-              Enter your email to receive a reset link
+              Entrez votre email pour recevoir un lien de réinitialisation
             </p>
           </div>
 
@@ -147,7 +147,7 @@ export default function ForgotPasswordPage() {
             />
 
             <FormButton type="submit" variant="primary" loading={loading} fullWidth>
-              Send Reset Link
+              Envoyer le lien
             </FormButton>
           </form>
 
@@ -163,7 +163,7 @@ export default function ForgotPasswordPage() {
                 fontFamily: 'JetBrains Mono, monospace',
               }}
             >
-              ← Back to login
+              ← Retour à la connexion
             </Link>
           </div>
         </div>
