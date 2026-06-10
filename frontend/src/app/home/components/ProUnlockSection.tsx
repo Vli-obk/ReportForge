@@ -7,7 +7,7 @@ const freeFeatures = [
   'Extraction OCR basique',
   'Analyse de tableaux standard',
   'Export vers CSV / JSON',
-  'Analytiques du tableau de bord',
+  'Analyses du tableau de bord',
 ];
 
 const proFeatures = [

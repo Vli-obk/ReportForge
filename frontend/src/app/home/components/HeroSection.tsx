@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import AppImage from '@/components/ui/AppImage';
 import Link from 'next/link';
+import { ScanText, Table2, Sparkles, Tags } from 'lucide-react';
 
 const DOCUMENT_COUNT_TARGET = 1487;
 
@@ -55,6 +56,8 @@ const glassPanels = [
     alt: 'OCR extraction interface with highlighted text fields',
     badge: 'TEXT',
     rating: '99%',
+    icon: ScanText,
+    href: '/home/uploads',
   },
   {
     id: 2,
@@ -66,6 +69,8 @@ const glassPanels = [
     alt: 'Table parsing view with extracted rows and columns',
     badge: 'DATA',
     rating: '98%',
+    icon: Table2,
+    href: '/home/analytics',
   },
   {
     id: 3,
@@ -77,10 +82,12 @@ const glassPanels = [
     alt: 'AI summary dashboard showing key insights and metrics',
     badge: 'AI',
     rating: '95%',
+    icon: Sparkles,
+    href: '/home/dashboard',
   },
   {
     id: 4,
-    label: 'Détection d\'Entités',
+    label: "Détection d'Entités",
     sublabel: 'NLP · Direct',
     color: '#1C1C30',
     style: { gridColumn: '3 / 5', gridRow: '2 / 3' },
@@ -88,6 +95,8 @@ const glassPanels = [
     alt: 'Named entity recognition panel with tagged names and dates',
     badge: 'NLP',
     rating: '96%',
+    icon: Tags,
+    href: '/home/datasets',
   },
 ];
 
@@ -193,63 +202,71 @@ export default function HeroSection() {
             margin: '0 auto',
           }}
         >
-          {glassPanels.map((panel, i) => (
-            <div
-              key={panel.id}
-              ref={(el) => {
-                panelsRef.current[i] = el;
-              }}
-              className="glass-panel relative overflow-hidden cursor-default"
-              style={{
-                ...panel.style,
-                transition: 'transform 0.15s linear, border-color 0.3s ease',
-              }}
-            >
-              {/* Background image */}
-              <div className="absolute inset-0">
-                <AppImage
-                  src={panel.image}
-                  alt={panel.alt}
-                  fill
-                  className="object-cover opacity-30"
-                  sizes="(max-width: 960px) 50vw, 33vw"
-                />
-              </div>
-              {/* Dark glass overlay */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    'linear-gradient(135deg, rgba(26,26,46,0.85) 0%, rgba(13,13,13,0.7) 100%)',
+          {glassPanels.map((panel, i) => {
+            const Icon = panel.icon;
+            return (
+              <Link
+                key={panel.id}
+                href={panel.href}
+                ref={(el) => {
+                  panelsRef.current[i] = el as HTMLDivElement | null;
                 }}
-              />
+                className="glass-panel relative overflow-hidden cursor-pointer group"
+                style={{
+                  ...panel.style,
+                  transition: 'transform 0.15s linear, border-color 0.3s ease',
+                }}
+              >
+                {/* Background image */}
+                <div className="absolute inset-0">
+                  <AppImage
+                    src={panel.image}
+                    alt={panel.alt}
+                    fill
+                    className="object-cover opacity-30"
+                    sizes="(max-width: 960px) 50vw, 33vw"
+                  />
+                </div>
+                {/* Dark glass overlay */}
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, rgba(26,26,46,0.85) 0%, rgba(13,13,13,0.7) 100%)',
+                  }}
+                />
 
-              {/* Content */}
-              <div className="absolute inset-0 p-4 flex flex-col justify-between">
-                <div className="flex items-start justify-between">
-                  <span className="badge-orange" style={{ fontSize: '0.6rem' }}>
-                    {panel.badge}
-                  </span>
-                  <span className="mono text-xs font-bold" style={{ color: 'var(--orange)' }}>
-                    ★ {panel.rating}
-                  </span>
+                {/* Content */}
+                <div className="absolute inset-0 p-4 flex flex-col justify-between">
+                  <div className="flex items-start justify-between">
+                    <span className="badge-orange" style={{ fontSize: '0.6rem' }}>
+                      {panel.badge}
+                    </span>
+                    <span className="mono text-xs font-bold" style={{ color: 'var(--orange)' }}>
+                      ★ {panel.rating}
+                    </span>
+                  </div>
+                  <div>
+                    <Icon
+                      size={panel.id === 1 ? 32 : 24}
+                      style={{ color: 'var(--orange)', opacity: 0.85, marginBottom: '8px' }}
+                    />
+                    <p className="mono font-bold text-sm" style={{ color: 'var(--aluminum)' }}>
+                      {panel.label}
+                    </p>
+                    <p className="mono text-xs" style={{ color: 'var(--aluminum-dim)' }}>
+                      {panel.sublabel}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="mono font-bold text-sm" style={{ color: 'var(--aluminum)' }}>
-                    {panel.label}
-                  </p>
-                  <p className="mono text-xs" style={{ color: 'var(--aluminum-dim)' }}>
-                    {panel.sublabel}
-                  </p>
-                </div>
-              </div>
-              {/* Border glow on hover */}
-              <div
-                className="absolute inset-0 rounded-[14px] pointer-events-none"
-                style={{ border: '1px solid rgba(255,107,43,0)' }}
-              />
-            </div>
-          ))}
+                {/* Border glow on hover */}
+                <div
+                  className="absolute inset-0 rounded-[14px] pointer-events-none group-hover:border-orange-500/40 transition-all"
+                  style={{ border: '1px solid rgba(255,107,43,0.1)' }}
+                />
+              </Link>
+            );
+          })}
 
           {/* Remaining 2 cells - stats */}
           <div

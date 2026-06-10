@@ -237,7 +237,7 @@ export default function LeaderboardSection() {
             </div>
             <div className="p-4 border-t" style={{ borderColor: 'rgba(74,74,90,0.3)' }}>
               <button className="btn-secondary text-xs py-2 px-4 w-full">
-                Voir Tous les 1487 Jeux de Données →
+                Voir Tous les 1487 Datasets →
               </button>
             </div>
           </div>

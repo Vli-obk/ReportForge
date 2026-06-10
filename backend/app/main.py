@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.api.deps import get_current_user
-from app.api.v1 import auth, pdfs, datasets, pipeline, gemini, financial_reports
+from app.api.v1 import auth, pdfs, datasets, pipeline, gemini, financial_reports, nlp
 from app.database.session import get_db
 from app.models.user import User
 
@@ -63,6 +63,7 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/financial-reports",
     tags=["financial-reports"],
 )
+app.include_router(nlp.router, prefix=f"{settings.API_V1_STR}/nlp", tags=["nlp"])
 
 
 @app.get(f"{settings.API_V1_STR}/dashboard/statistics")

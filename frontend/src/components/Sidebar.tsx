@@ -11,9 +11,8 @@ export default function Sidebar() {
   const navItems = [
     { label: 'Tableau de bord', href: '/home/dashboard' },
     { label: 'Téléchargements', href: '/home/uploads' },
-    { label: 'Jeux de données', href: '/home/datasets' },
-    { label: 'Analytiques', href: '/home/analytics' },
-    { label: 'Pipeline', href: '/home/pipeline' },
+    { label: 'Datasets', href: '/home/datasets' },
+    { label: 'Analyses', href: '/home/analytics' },
     { label: 'Paramètres', href: '/home/settings' },
   ];
 

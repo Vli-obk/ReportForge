@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { pdfAPI, datasetAPI, aiAPI, financialReportsAPI } from '@/lib/api';
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, Database, FileText, Activity, Brain,
-  CheckCircle, XCircle, DollarSign, Target, BarChart2, Layers,
+  CheckCircle, XCircle, DollarSign, Target, BarChart2, Layers, RefreshCw,
 } from 'lucide-react';
 import type { FinancialReport, PDFDocument, Dataset, Statistics } from '@/lib/api-types';
 
@@ -104,33 +104,43 @@ export default function AnalyticsPage() {
   const [datasets,         setDatasets]         = useState<Dataset[]>([]);
   const [documents,        setDocuments]        = useState<PDFDocument[]>([]);
   const [financialReports, setFinancialReports] = useState<FinancialReport[]>([]);
-  const [loading,          setLoading]          = useState(true);
+  // Each section has its own loading flag so the page renders immediately
+  const [statsLoading,  setStatsLoading]  = useState(true);
+  const [docsLoading,   setDocsLoading]   = useState(true);
+  const [frLoading,     setFrLoading]     = useState(true);
+  const [refreshing,    setRefreshing]    = useState(false);
 
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
   const [aiAnalytics,   setAiAnalytics]   = useState<any | null>(null);
   const [aiLoading,     setAiLoading]     = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [s, d, docs, fr] = await Promise.all([
-          pdfAPI.getStatistics(),
-          datasetAPI.getAll(),
-          pdfAPI.getAll(),
-          financialReportsAPI.getAll(),
-        ]);
-        setStats(s.data);
-        setDatasets(d.data);
-        setDocuments(docs.data);
-        setFinancialReports(fr.data);
-      } catch (err) {
-        console.error('Analytics fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+  const load = useCallback((silent = false) => {
+    if (silent) setRefreshing(true);
+
+    // Fire all requests independently — each section shows as soon as its data arrives
+    pdfAPI.getStatistics()
+      .then(r => setStats(r.data))
+      .catch(err => console.error('stats error:', err))
+      .finally(() => setStatsLoading(false));
+
+    Promise.all([pdfAPI.getAll(), datasetAPI.getAll()])
+      .then(([docs, ds]) => { setDocuments(docs.data); setDatasets(ds.data); })
+      .catch(err => console.error('docs/datasets error:', err))
+      .finally(() => setDocsLoading(false));
+
+    financialReportsAPI.getAll()
+      .then(r => setFinancialReports(r.data))
+      .catch(err => console.error('financial reports error:', err))
+      .finally(() => { setFrLoading(false); if (silent) setRefreshing(false); });
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Auto-refresh every 30s so stats stay current after background processing
+  useEffect(() => {
+    const id = setInterval(() => load(true), 30000);
+    return () => clearInterval(id);
+  }, [load]);
 
   const handleDocSelect = async (docId: number) => {
     setSelectedDocId(docId);
@@ -225,28 +235,7 @@ export default function AnalyticsPage() {
     ? Math.round(documents.filter(d => d.status === 'completed').length / documents.length * 100)
     : null;
 
-  // ── loading skeleton ──────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <div className="h-8 w-40 rounded-lg animate-pulse mb-2" style={{ background: 'rgba(74,74,90,0.3)' }} />
-          <div className="h-4 w-64 rounded animate-pulse"         style={{ background: 'rgba(74,74,90,0.2)' }} />
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-xl h-28 animate-pulse" style={{ background: 'rgba(74,74,90,0.2)' }} />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-xl h-72 animate-pulse" style={{ background: 'rgba(74,74,90,0.2)' }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const initialLoading = statsLoading && docsLoading;
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -254,23 +243,42 @@ export default function AnalyticsPage() {
     <div className="space-y-8">
 
       {/* Page header */}
-      <div>
-        <h1 className="text-3xl font-bold" style={{ color: '#D0D0D8', fontFamily: 'Manrope, sans-serif' }}>
-          Analytiques
-        </h1>
-        <p className="text-sm mt-1" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>
-          Performance de traitement et aperçu des données financières extraites
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold" style={{ color: '#D0D0D8', fontFamily: 'Manrope, sans-serif' }}>
+            Analyses
+          </h1>
+          <p className="text-sm mt-1" style={{ color: '#8A8A9A', fontFamily: 'JetBrains Mono, monospace' }}>
+            Performance de traitement et aperçu des données financières extraites
+          </p>
+        </div>
+        <button
+          onClick={() => load(true)}
+          disabled={refreshing}
+          className="btn-secondary py-2 px-3 text-sm flex items-center gap-2 mt-1 disabled:opacity-50"
+          title="Actualiser les statistiques"
+        >
+          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+          Actualiser
+        </button>
       </div>
 
       {/* ── KPI cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={FileText}   label="Documents"         value={stats?.total_pdfs   ?? 0} sub="total téléchargé" />
-        <KpiCard icon={CheckCircle} label="Taux de Réussite"     value={successRate != null ? `${successRate}%` : '—'} sub="terminés / total" color={TEAL} />
-        <KpiCard icon={Database}   label="Lignes Extraites"    value={fmt(stats?.total_rows ?? 0)} sub="dans tous les jeux de données" color="#8A8A9A" />
-        <KpiCard icon={Target}     label="Rapports Financiers" value={financialReports.length}
-          sub={avgConfidence != null ? `confiance moy. ${avgConfidence}%` : 'traités'} color={TEAL} />
-      </div>
+      {initialLoading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-xl h-28 animate-pulse" style={{ background: 'rgba(74,74,90,0.2)' }} />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard icon={FileText}    label="Documents"          value={stats?.total_pdfs ?? 0} sub="total téléchargé" />
+          <KpiCard icon={Database}    label="Datasets"           value={datasets.length} sub={`${fmt(stats?.total_rows ?? 0)} lignes extraites`} color={TEAL} />
+          <KpiCard icon={CheckCircle} label="Taux de Réussite"   value={successRate != null ? `${successRate}%` : '—'} sub="terminés / total" color="#8A8A9A" />
+          <KpiCard icon={Target}      label="Rapports Financiers" value={frLoading ? '…' : financialReports.length}
+            sub={avgConfidence != null ? `confiance moy. ${avgConfidence}%` : 'traités'} color={ORANGE} />
+        </div>
+      )}
 
       {/* ── Processing Status + Upload Activity ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -324,8 +332,14 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* ── Financial Reports section (only when data exists) ── */}
-      {financialReports.length > 0 && (
+      {/* ── Financial Reports section ── */}
+      {frLoading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="rounded-xl h-72 animate-pulse" style={{ background: 'rgba(74,74,90,0.2)' }} />
+          ))}
+        </div>
+      ) : financialReports.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* Bar — revenue by company */}
@@ -397,9 +411,9 @@ export default function AnalyticsPage() {
 
       {/* ── Dataset sizes ── */}
       <div className="rounded-xl p-6" style={{ background: CARD_BG, border: CARD_BR }}>
-        <SectionHeader icon={Layers} title="Principaux Jeux de Données par Taille" sub="nombre de lignes par jeu de données extrait" />
+        <SectionHeader icon={Layers} title="Principaux Datasets par Taille" sub="nombre de lignes par dataset extrait" />
         {datasetData.length === 0 ? (
-          <EmptyChart message="Aucun jeu de données généré" />
+          <EmptyChart message="Aucun dataset généré" />
         ) : (
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={datasetData} margin={{ top: 4, right: 8, bottom: 40, left: -10 }}>

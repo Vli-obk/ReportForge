@@ -160,36 +160,14 @@ export function PDFDetailsDrawer({ documentId, onClose }: { documentId: number |
     (signal) => pdfAPI.getById(documentId as number, signal),
     { enabled }
   );
-  const { data: datasets, refetch: refetchDatasets } = useApiQuery('datasets-for-pdf-detail', (signal) => datasetAPI.getAll(0, 100, signal), { enabled });
+  const { data: datasets } = useApiQuery('datasets-for-pdf-detail', (signal) => datasetAPI.getAll(0, 100, signal), { enabled });
   const { data: jobs } = useApiQuery('jobs-for-pdf-detail', (signal) => pipelineAPI.getJobs(0, 100, signal), { enabled, pollMs: 30000 });
-  const [aiResult, setAiResult] = useState<GeminiExtractResponse | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
 
   if (!enabled) return null;
 
   const linkedDatasets = (datasets || []).filter((dataset) => dataset.pdf_document_id === documentId);
   const history = (jobs || []).filter((job) => job.pdf_document_id === documentId);
   const metadata = parseMetadata(doc?.extraction_metadata);
-
-  const runExtract = async () => {
-    if (!doc) return;
-    setAiLoading(true);
-    setAiError(null);
-    setAiResult(null);
-    try {
-      const response = await pdfAPI.geminiExtract(doc.id);
-      setAiResult(response.data);
-      if (response.data.dataset_id) {
-        refetchDatasets();
-      }
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || err?.message || 'AI extraction failed';
-      setAiError(detail);
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0, 0, 0, 0.55)' }}>
@@ -209,17 +187,11 @@ export function PDFDetailsDrawer({ documentId, onClose }: { documentId: number |
               ['Statut de Traitement', doc.status],
               ['Source', doc.source_url || doc.source_type],
             ]} />
-            <button onClick={runExtract} disabled={aiLoading || doc.status !== 'completed'} className="btn-primary py-2 px-4 text-sm flex items-center gap-2 disabled:opacity-50">
-              <Sparkles size={16} />
-              {aiLoading ? 'Extraction...' : 'Extraction IA → Jeu de données'}
-            </button>
-            {aiError && <p style={{ ...textMono, color: '#FF6B6B' }}>{aiError}</p>}
-            {aiResult && <AIExtractionResult result={aiResult} />}
             <Section title="Métadonnées Extraites"><JsonBlock value={metadata} /></Section>
-            <Section title="Jeux de Données Liés">
+            <Section title="Datasets Liés">
               {linkedDatasets.length ? linkedDatasets.map((dataset) => (
                 <p key={dataset.id} style={{ color: 'var(--aluminum)' }}>{dataset.name} — {dataset.row_count} lignes</p>
-              )) : <p style={textMono}>Aucun jeu de données lié pour l'instant.</p>}
+              )) : <p style={textMono}>Aucun dataset lié. Allez dans l'onglet Datasets pour lancer l'extraction IA.</p>}
             </Section>
             <Section title="Historique de Traitement">
               {history.length ? history.map((job) => <JobTimelineItem key={job.id} job={job} />) : <p style={textMono}>Aucun historique de traitement trouvé.</p>}
@@ -278,7 +250,7 @@ export function DatasetDetailView({
         <MiniStat label="Statut" value={dataset.status} />
       </div>
       <div className="px-6">
-        <Section title="Métadonnées du Jeu de Données">
+        <Section title="Dataset Metadata">
           <DetailGrid items={[
             ['Créé', formatDateTime(dataset.created_at)],
             ['Document Source', sourceDocument?.original_filename || `PDF #${dataset.pdf_document_id}`],
@@ -396,14 +368,14 @@ function JobTimelineItem({ job }: { job: ProcessingJob }) {
 function AIExtractionResult({ result }: { result: GeminiExtractResponse }) {
   const created = !!result.dataset_id;
   return (
-    <Section title="Résultats d'Extraction IA">
+    <Section title="AI Extraction Results">
       <div className="rounded-lg p-4 space-y-3" style={panelStyle}>
         <DetailGrid items={[
           ['Modèle', result.model],
           ['Temps de Traitement', `${result.processing_time}s`],
-          ['Statut', created ? '✓ Jeu de données créé' : 'Aucune donnée structurée trouvée'],
+          ['Status', created ? '✓ Dataset created' : 'No structured data found'],
           ...(created ? [
-            ['Jeu de données', result.dataset_name ?? ''],
+            ['Dataset', result.dataset_name ?? ''],
             ['Lignes', String(result.row_count ?? 0)],
           ] : []),
         ]} />
@@ -414,7 +386,7 @@ function AIExtractionResult({ result }: { result: GeminiExtractResponse }) {
         )}
         {created && (
           <p className="text-xs" style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}>
-            Le jeu de données #{result.dataset_id} est maintenant visible dans la section Jeux de Données et sous Jeux de Données Liés ci-dessous.
+            Le dataset #{result.dataset_id} est maintenant visible dans la section Datasets et sous Datasets Liés ci-dessous.
           </p>
         )}
       </div>

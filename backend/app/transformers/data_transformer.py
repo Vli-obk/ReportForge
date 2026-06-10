@@ -25,12 +25,41 @@ class DataTransformer:
         if not data:
             return pd.DataFrame()
 
-        df = pd.DataFrame(data)
-        df = df.dropna(how="all")
-        df = df.drop_duplicates()
+        # NLP preprocessing: clean, type-infer, normalize values
+        try:
+            from app.services.nlp_preprocessor import preprocess_rows
+            data, _ = preprocess_rows(data)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("nlp_preprocess_skipped", extra={"error": str(exc)})
 
+        df = pd.DataFrame(data)
+
+        # Normalise empty-looking values to NaN
+        _EMPTY = {"", "null", "none", "n/a", "na", "-", "—", "nan"}
         for col in df.select_dtypes(include=["object"]):
-            df[col] = df[col].map(lambda v: v.strip() if isinstance(v, str) else v)
+            df[col] = df[col].map(
+                lambda v: None if (isinstance(v, str) and v.strip().lower() in _EMPTY) else v
+            )
+
+        # Drop rows that are entirely null
+        df = df.dropna(how="all")
+
+        # For narrow tables (≤20 cols), drop rows with only 1 non-null value (e.g. country-only)
+        # Wide tables naturally have sparse rows — don't apply this filter
+        if 3 < len(df.columns) <= 20:
+            df = df.dropna(thresh=2)
+
+        # Drop columns that are entirely null
+        df = df.dropna(axis=1, how="all")
+
+        # Drop columns where >75% of values are null (keep if at least 25% filled)
+        if len(df) > 0:
+            min_non_null = max(1, int(len(df) * 0.25))
+            df = df.dropna(axis=1, thresh=min_non_null)
+
+        # Drop duplicate rows
+        df = df.drop_duplicates()
 
         return df
 
@@ -53,6 +82,30 @@ class DataTransformer:
         columns = sorted({key for row in rows for key in row.keys() if key})
         if len(columns) < 1:
             raise ValueError("Insufficient structure: no usable columns")
+
+        # Column-name quality checks — detect malformed header extraction
+        import re as _re
+        _year_pattern = _re.compile(r'^\d{4}(_\d{4}){1,}')   # "2025_2026_2026_..."
+        _pure_number  = _re.compile(r'^\d+$')                  # "1990", "2026"
+        _footnote_num = _re.compile(r'^\d+[a-z]')              # "1includesself", "3full"
+
+        year_concat = sum(1 for c in columns if _year_pattern.match(c))
+        pure_numeric = sum(1 for c in columns if _pure_number.match(c))
+        footnote_col = sum(1 for c in columns if _footnote_num.match(c))
+        bad_cols = year_concat + pure_numeric + footnote_col
+
+        if len(columns) >= 3 and bad_cols / len(columns) > 0.4:
+            raise ValueError(
+                f"Column names look malformed ({bad_cols}/{len(columns)} are numeric/footnote-style) "
+                "— likely a mis-parsed statistical table"
+            )
+
+        # Single-row datasets from large tables are almost always extraction failures
+        if len(rows) == 1 and len(columns) > 8:
+            raise ValueError(
+                f"Single-row dataset with {len(columns)} columns — likely a mis-parsed table header row"
+            )
+
         null_cells = 0
         total_cells = 0
         for row in rows:
@@ -140,7 +193,7 @@ class DataTransformer:
                 {
                     "row_data": row_data,
                     "extraction_method": extraction_method,
-                    "confidence_score": None,
+                    "confidence_score": 0,  # caller overrides with actual data-density score
                 }
             )
 
