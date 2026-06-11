@@ -24,13 +24,7 @@ from app.schemas.analytics import Analytics as AnalyticsSchema
 from app.schemas.gemini import GeminiExtractResponse
 from app.schemas.pdf_document import PDFDocument, PDFDocumentCreate, PDFUploadResponse
 from app.schemas.processing_job import Statistics
-from app.services.gemini_service import (
-    GeminiRateLimitError,
-    GeminiService,
-    GeminiTimeoutError,
-    GeminiUnavailableError,
-    ModelNotFoundError,
-)
+from app.services.groq_service import GroqService, GroqRateLimitError, GroqUnavailableError
 from app.core.concurrency import pdf_extract_semaphore as _pdf_extract_semaphore
 from app.services.pdf_service import PDFService
 
@@ -232,7 +226,7 @@ async def scrape_pdf(
 
 
 # ------------------------------------------------------------------ #
-# Gemini extract from stored PDF                                       #
+# AI extract from stored PDF (powered by Groq / Llama 3.3)            #
 # ------------------------------------------------------------------ #
 
 @router.post("/{document_id}/gemini-extract", response_model=GeminiExtractResponse)
@@ -259,12 +253,14 @@ async def gemini_extract_pdf(
             detail="PDF file not found on disk. It may have been deleted.",
         )
 
+    from app.services.pdf_service import _extract_pages_limited as _epl
     from app.scraper.pdf_scraper import PDFScraper
     scraper = PDFScraper()
     try:
         async with _pdf_extract_semaphore:
+            # 30 pages: NLP needs full document coverage; Groq will only see first 10 pages' text
             extraction_result = await asyncio.to_thread(
-                _extract_pages_limited, scraper, document.file_path, max_pages=40
+                _epl, scraper, document.file_path, 30
             )
     except Exception as exc:
         raise HTTPException(
@@ -272,58 +268,101 @@ async def gemini_extract_pdf(
             detail=f"Text extraction failed: {exc}",
         )
 
-    extracted_text = extraction_result.get("text", "").strip()
+    # Groq only processes first 10 pages for speed; NLP uses all 30
+    groq_pages = extraction_result.get("pages", [])[:10]
+    groq_text = "".join(p.get("text", "") for p in groq_pages).strip()
+    extracted_text = groq_text or extraction_result.get("text", "").strip()
     if not extracted_text:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="No text could be extracted. Try enabling OCR for scanned documents.",
         )
 
-    # Cap to 12 000 chars — single Gemini call, no chunking
-    extracted_text = extracted_text[:12_000]
-
-    gemini = GeminiService(timeout=60, retries=0)
+    # Tables from first 10 pages only (Groq speed limit)
+    raw_tables = [t for t in extraction_result.get("tables", []) if t.get("page", 1) <= 10]
+    # NLP gets all 30 pages for full entity coverage
+    pages_with_text = [p for p in extraction_result.get("pages", []) if p.get("text", "").strip()]
+    groq = GroqService(timeout=45)
     started = time.perf_counter()
-    try:
-        structured_data = await asyncio.to_thread(gemini.extract_structured_data, extracted_text)
-    except GeminiRateLimitError:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=(
-                "Gemini API quota exceeded. Daily free-tier limit reached. "
-                "Try again after midnight Pacific time."
-            ),
-        )
-    except ModelNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
-    except GeminiTimeoutError:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Gemini did not respond in time. Try again in a moment.",
-        )
-    except GeminiUnavailableError as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-    except Exception as exc:
-        logger.exception("gemini_extract_unexpected_error", extra={"document_id": document_id})
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Extraction failed: {exc}",
-        )
+    extraction_method_used = "groq"
+
+    # Step 1: Groq table-aware extraction
+    structured_data = []
+    if raw_tables:
+        try:
+            structured_data = await asyncio.to_thread(groq.extract_from_tables, raw_tables)
+        except (GroqRateLimitError, GroqUnavailableError) as exc:
+            logger.warning("gemini_extract_groq_table_skipped", extra={"document_id": document_id, "reason": str(exc)})
+        except Exception as exc:
+            logger.warning("gemini_extract_groq_table_failed", extra={"document_id": document_id, "error": str(exc)})
+
+    # Step 2: Groq text extraction fallback (first 10 pages only)
+    if not structured_data:
+        try:
+            structured_data = await asyncio.to_thread(
+                groq.extract_structured_data, extracted_text[:8000]
+            )
+        except (GroqRateLimitError, GroqUnavailableError) as exc:
+            logger.warning("gemini_extract_groq_text_skipped", extra={"document_id": document_id, "reason": str(exc)})
+        except Exception as exc:
+            logger.warning("gemini_extract_groq_text_failed", extra={"document_id": document_id, "error": str(exc)})
+
+    # Step 3: Local extractor fallback (no API, always available)
+    if not structured_data:
+        try:
+            from app.services.local_extractor import LocalExtractorService
+            structured_data = LocalExtractorService().extract(extracted_text, document.original_filename)
+            extraction_method_used = "local"
+            logger.info("gemini_extract_used_local_fallback", extra={"document_id": document_id})
+        except Exception as exc:
+            logger.warning("gemini_extract_local_failed", extra={"document_id": document_id, "error": str(exc)})
 
     elapsed = round(time.perf_counter() - started, 3)
+
+    # NLP entity extraction — skip if dataset already exists for this document
+    _existing_nlp = await db.execute(
+        select(Dataset).where(
+            Dataset.pdf_document_id == document_id,
+            Dataset.name == f"NLP Entities - {document.original_filename}",
+        )
+    )
+    _nlp_exists = _existing_nlp.scalar_one_or_none() is not None
+
+    if pages_with_text and not _nlp_exists:
+        try:
+            from app.services.nlp_service import extract_entities_as_rows
+            entity_rows = await asyncio.to_thread(
+                extract_entities_as_rows, pages_with_text, document.original_filename
+            )
+            if entity_rows:
+                await pdf_service._create_nlp_entity_dataset(
+                    user_id=current_user.id,
+                    pdf_document_id=document_id,
+                    rows=entity_rows,
+                    name=f"NLP Entities - {document.original_filename}",
+                )
+        except Exception as exc:
+            logger.warning(
+                "gemini_extract_nlp_failed",
+                extra={"document_id": document_id, "error": str(exc), "type": type(exc).__name__},
+            )
+            # Must rollback so the session is usable for the structured dataset creation below
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+    elif _nlp_exists:
+        logger.info("gemini_extract_nlp_skipped_exists", extra={"document_id": document_id})
 
     if not structured_data:
         return GeminiExtractResponse(
             success=True,
-            model=gemini.model,
+            model="llama-3.3-70b-versatile",
             processing_time=elapsed,
-            message="Gemini found no structured/tabular data in this PDF.",
+            message="No structured data found in this PDF.",
         )
 
-    # Save extracted data as a new dataset
-    dataset_name = f"AI Extracted - {document.original_filename}"
+    dataset_name = f"AI Extracted ({extraction_method_used}) - {document.original_filename}"
     csv_filename = f"{os.path.splitext(document.filename)[0]}_ai_extract.csv"
     json_filename = f"{os.path.splitext(document.filename)[0]}_ai_extract.json"
     csv_path = os.path.join(settings.UPLOAD_DIR, csv_filename)
@@ -341,19 +380,33 @@ async def gemini_extract_pdf(
     except ValueError as exc:
         return GeminiExtractResponse(
             success=True,
-            model=gemini.model,
+            model="llama-3.3-70b-versatile",
             processing_time=elapsed,
             message=f"Data extracted but quality check failed: {exc}",
         )
+    except Exception as exc:
+        logger.error(
+            "gemini_extract_dataset_failed",
+            extra={
+                "document_id": document_id,
+                "error": str(exc),
+                "type": type(exc).__name__,
+            },
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Dataset creation failed ({type(exc).__name__}): {exc}",
+        )
 
     logger.info(
-        "gemini_extract_dataset_created",
+        "ai_extract_dataset_created",
         extra={"document_id": document_id, "dataset_id": dataset.id, "rows": dataset.row_count},
     )
 
     return GeminiExtractResponse(
         success=True,
-        model=gemini.model,
+        model="llama-3.3-70b-versatile",
         processing_time=elapsed,
         dataset_id=dataset.id,
         dataset_name=dataset.name,

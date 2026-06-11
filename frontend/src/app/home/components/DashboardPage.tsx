@@ -164,13 +164,13 @@ export default function DashboardPage() {
             className="btn-secondary py-3 px-6 text-sm"
             onClick={() => (window.location.href = '/home/datasets')}
           >
-            Voir les Jeux de Données
+            Voir les Datasets
           </button>
           <button
             className="btn-secondary py-3 px-6 text-sm"
             onClick={() => (window.location.href = '/home/analytics')}
           >
-            Voir les Analytiques
+            Voir les Analyses
           </button>
         </div>
       </div>

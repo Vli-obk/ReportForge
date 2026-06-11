@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import requests
 from typing import Any, Dict, List, Optional
 
 from app.core.prompts import (
@@ -10,41 +9,33 @@ from app.core.prompts import (
     INSIGHTS_PROMPT,
     SUMMARIZATION_PROMPT,
 )
-from app.core.config import settings
-from app.services.gemini_service import GeminiService
+from app.services.groq_service import GroqService, GroqUnavailableError, GroqRateLimitError
 
 logger = logging.getLogger(__name__)
 
 
 class AIService:
     def __init__(self):
-        self.gemini = GeminiService(
-            base_url=settings.GEMINI_API_URL,
-            model=settings.GEMINI_MODEL,
-            api_key=settings.GEMINI_API_KEY,
-            timeout=8,
-            retries=0,
-        )
+        self.groq = GroqService(timeout=20)
 
-    def _query_gemini(self, prompt: str) -> Optional[str]:
+    def _query(self, prompt: str, max_tokens: int = 512) -> Optional[str]:
         try:
-            return self.gemini.generate_sync(prompt, temperature=0.3, max_tokens=256)
-        except (requests.exceptions.RequestException, json.JSONDecodeError) as exc:
-            logger.warning("ai_service_gemini_unavailable", extra={"error": str(exc)})
+            return self.groq.generate_sync(prompt, temperature=0.3, max_tokens=max_tokens)
+        except (GroqUnavailableError, GroqRateLimitError) as exc:
+            logger.warning("ai_service_groq_unavailable", extra={"error": str(exc)})
         except Exception as exc:
-            logger.warning("ai_service_gemini_failed", extra={"error": str(exc)})
+            logger.warning("ai_service_groq_failed", extra={"error": str(exc)})
         return None
 
     def generate_summary(self, text: str) -> str:
-        sample_text = text[:1500]
+        sample_text = text[:2000]
         if not sample_text.strip():
             return "No text available for summarization."
 
-        response = self._query_gemini(SUMMARIZATION_PROMPT.format(text=sample_text))
+        response = self._query(SUMMARIZATION_PROMPT.format(text=sample_text), max_tokens=512)
         if response:
             return response
 
-        logger.info("ai_service_summary_fallback")
         sentences = [s.strip() for s in re.split(r"[.!?]\s+", sample_text) if len(s.strip()) > 15]
         bullets = sentences[:3]
         if bullets:
@@ -60,15 +51,14 @@ class AIService:
         if not sample_text.strip():
             return "General Document"
 
-        response = self._query_gemini(CLASSIFICATION_PROMPT.format(text=sample_text))
+        response = self._query(CLASSIFICATION_PROMPT.format(text=sample_text), max_tokens=20)
         if response and len(response) < 40:
             return response.replace("-", "").strip()
 
-        logger.info("ai_service_classification_fallback")
         text_lower = sample_text.lower()
-        if any(w in text_lower for w in ["invoice", "billing", "receipt", "payment", "amount due", "qty"]):
+        if any(w in text_lower for w in ["invoice", "billing", "receipt", "payment", "amount due", "qty", "facture"]):
             return "Invoice/Billing"
-        if any(w in text_lower for w in ["balance sheet", "revenue", "profit", "cash flow", "quarterly", "ebitda"]):
+        if any(w in text_lower for w in ["balance sheet", "revenue", "profit", "cash flow", "quarterly", "ebitda", "bilan"]):
             return "Financial Report"
         if any(w in text_lower for w in ["log", "timestamp", "system", "error", "severity", "processing"]):
             return "Operations Log"
@@ -79,25 +69,21 @@ class AIService:
         return "General Document"
 
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
-        sample_text = text[:1200]
+        sample_text = text[:1500]
         if not sample_text.strip():
             return []
 
-        response = self._query_gemini(ENTITY_EXTRACTION_PROMPT.format(text=sample_text))
+        response = self._query(ENTITY_EXTRACTION_PROMPT.format(text=sample_text), max_tokens=512)
         if response:
             try:
-                json_str = response
-                if "```json" in response:
-                    json_str = response.split("```json")[1].split("```")[0]
-                elif "```" in response:
-                    json_str = response.split("```")[1].split("```")[0]
-                parsed = json.loads(json_str.strip())
+                json_str = re.sub(r"^```(?:json)?\s*", "", response.strip(), flags=re.IGNORECASE)
+                json_str = re.sub(r"\s*```$", "", json_str.strip())
+                parsed = json.loads(json_str)
                 if isinstance(parsed, list):
                     return parsed
             except Exception:
                 pass
 
-        logger.info("ai_service_entities_fallback")
         entities: List[Dict[str, Any]] = []
         dates = re.findall(
             r"\b\d{4}[-/]\d{2}[-/]\d{2}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}, \d{4}\b",
@@ -106,16 +92,13 @@ class AIService:
         if dates:
             entities.append({"key": "Report Date", "value": dates[0]})
         currencies = re.findall(
-            r"\$\s*\d+(?:,\d{3})*(?:\.\d{2})?|\b\d+(?:,\d{3})*(?:\.\d{2})?\s*(?:USD|EUR|GBP)\b",
+            r"\$\s*\d+(?:,\d{3})*(?:\.\d{2})?|\b\d+(?:,\d{3})*(?:\.\d{2})?\s*(?:USD|EUR|GBP|MAD)\b",
             sample_text,
         )
         if currencies:
             entities.append({"key": "Primary Financial Metric", "value": currencies[0]})
-        words = [
-            w
-            for w in re.findall(r"\b[A-Z][a-zA-Z]{3,}\b", sample_text)
-            if w not in {"Report", "Date", "Page", "Total", "Volume", "Company"}
-        ]
+        words = [w for w in re.findall(r"\b[A-Z][a-zA-Z]{3,}\b", sample_text)
+                 if w not in {"Report", "Date", "Page", "Total", "Volume", "Company"}]
         if len(words) >= 2:
             entities.append({"key": "Identified Subject/Company", "value": f"{words[0]} {words[1]}"})
         entities.append({"key": "Ingestion Status", "value": "Completed"})
@@ -123,30 +106,26 @@ class AIService:
         return entities
 
     def generate_insights(self, text: str) -> Dict[str, Any]:
-        sample_text = text[:1500]
+        sample_text = text[:2000]
         if not sample_text.strip():
             return {
                 "insights": ["Ensure documents contain detailed textual tables or logs to generate comparative insights."],
                 "kpis": {"Analysis Quality": "Limited"},
             }
 
-        response = self._query_gemini(INSIGHTS_PROMPT.format(text=sample_text))
+        response = self._query(INSIGHTS_PROMPT.format(text=sample_text), max_tokens=512)
         if response:
             try:
-                json_str = response
-                if "```json" in response:
-                    json_str = response.split("```json")[1].split("```")[0]
-                elif "```" in response:
-                    json_str = response.split("```")[1].split("```")[0]
-                parsed = json.loads(json_str.strip())
+                json_str = re.sub(r"^```(?:json)?\s*", "", response.strip(), flags=re.IGNORECASE)
+                json_str = re.sub(r"\s*```$", "", json_str.strip())
+                parsed = json.loads(json_str)
                 if isinstance(parsed, dict) and ("insights" in parsed or "kpis" in parsed):
                     return parsed
             except Exception:
                 pass
 
-        logger.info("ai_service_insights_fallback")
         text_lower = sample_text.lower()
-        if "invoice" in text_lower or "bill" in text_lower:
+        if "invoice" in text_lower or "bill" in text_lower or "facture" in text_lower:
             return {
                 "insights": [
                     "Audit transaction values against baseline budgets to detect vendor variance.",
@@ -155,7 +134,7 @@ class AIService:
                 ],
                 "kpis": {"Invoice Validity": "Verified", "Audit Grade": "Pass", "Risk Index": "Low"},
             }
-        if any(w in text_lower for w in ["financial", "revenue", "profit"]):
+        if any(w in text_lower for w in ["financial", "revenue", "profit", "bilan"]):
             return {
                 "insights": [
                     "Identify cost containment areas to optimize net operating income margins.",

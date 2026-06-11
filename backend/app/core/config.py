@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # OCR Settings
     TESSERACT_CMD: Optional[str] = None  # Path to tesseract executable if not in PATH
 
+    # Groq API Settings
+    GROQ_API_KEY: str = ""
+
     # Gemini API Settings
     GEMINI_API_URL: str = "https://generativelanguage.googleapis.com"
     GEMINI_API_KEY: str = ""

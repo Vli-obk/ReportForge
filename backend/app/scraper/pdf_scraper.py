@@ -3,12 +3,13 @@ import logging
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urljoin, urlparse
 
 import pdfplumber
 import pytesseract
 import requests
+from bs4 import BeautifulSoup
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -74,20 +75,20 @@ class PDFScraper:
             logger.warning("ocr_page_failed", extra={"error": str(exc)})
             return ""
 
-    def download_pdf_from_url(self, url: str, save_path: str) -> str:
-        parsed = urlparse(url)
+    def _make_session(self, referer: Optional[str] = None) -> requests.Session:
+        parsed = urlparse(referer or "https://example.com")
         origin = f"{parsed.scheme}://{parsed.netloc}"
-
-        headers = {
+        session = requests.Session()
+        session.headers.update({
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
                 "Chrome/124.0.0.0 Safari/537.36"
             ),
-            "Accept": "application/pdf,application/octet-stream,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/pdf,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,fr;q=0.8",
             "Accept-Encoding": "gzip, deflate, br",
-            "Referer": origin + "/",
+            "Referer": referer or (origin + "/"),
             "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
             "sec-ch-ua-mobile": "?0",
             "sec-ch-ua-platform": '"Windows"',
@@ -96,32 +97,26 @@ class PDFScraper:
             "Sec-Fetch-Site": "same-origin",
             "Upgrade-Insecure-Requests": "1",
             "Connection": "keep-alive",
-        }
+        })
+        return session
 
+    def download_pdf_from_url(self, url: str, save_path: str, referer: Optional[str] = None, session: Optional[requests.Session] = None) -> str:
         dir_path = os.path.dirname(save_path)
         if dir_path:
             os.makedirs(dir_path, exist_ok=True)
 
+        # Use provided session (with cookies from prior page fetch) or create a fresh one
+        sess = session or self._make_session(referer or url)
+
         last_error: Optional[Exception] = None
-        # Persistent session preserves cookies across redirects (handles cookie-wall challenges)
-        session = requests.Session()
-        session.headers.update(headers)
 
         for attempt, delay in enumerate(_DOWNLOAD_RETRY_DELAYS):
             if delay:
-                logger.info(
-                    "pdf_download_retry",
-                    extra={"url": url, "attempt": attempt + 1, "delay": delay},
-                )
+                logger.info("pdf_download_retry", extra={"url": url, "attempt": attempt + 1, "delay": delay})
                 time.sleep(delay)
 
             try:
-                response = session.get(
-                    url,
-                    timeout=(15, 120),
-                    stream=True,
-                    allow_redirects=True,
-                )
+                response = sess.get(url, timeout=(15, 120), stream=True, allow_redirects=True)
                 response.raise_for_status()
 
                 try:
@@ -134,8 +129,7 @@ class PDFScraper:
                             if not pdf_verified:
                                 if not chunk.startswith(b"%PDF-"):
                                     raise ValueError(
-                                        f"URL does not serve a valid PDF "
-                                        f"(first bytes: {chunk[:8]!r})"
+                                        f"URL does not serve a valid PDF (first bytes: {chunk[:8]!r})"
                                     )
                                 pdf_verified = True
                             f.write(chunk)
@@ -144,10 +138,7 @@ class PDFScraper:
                     if not pdf_verified:
                         raise ValueError("Empty response — URL returned no content")
 
-                    logger.info(
-                        "pdf_downloaded",
-                        extra={"url": url, "bytes": total_bytes, "path": save_path},
-                    )
+                    logger.info("pdf_downloaded", extra={"url": url, "bytes": total_bytes, "path": save_path})
                     return save_path
 
                 except Exception:
@@ -157,15 +148,10 @@ class PDFScraper:
 
             except requests.exceptions.Timeout as exc:
                 last_error = exc
-                logger.warning(
-                    "pdf_download_timeout",
-                    extra={"url": url, "attempt": attempt + 1},
-                )
+                logger.warning("pdf_download_timeout", extra={"url": url, "attempt": attempt + 1})
                 continue
-
             except requests.exceptions.SSLError as exc:
                 raise IOError(f"SSL certificate error fetching {url}: {exc}") from exc
-
             except requests.exceptions.HTTPError as exc:
                 sc = exc.response.status_code if exc.response is not None else 0
                 if sc == 404:
@@ -173,21 +159,14 @@ class PDFScraper:
                 if sc == 403:
                     raise PermissionError(f"Access denied to PDF (403): {url}") from exc
                 raise IOError(f"HTTP {sc} fetching PDF: {url}") from exc
-
             except (ValueError, FileNotFoundError, PermissionError, IOError):
-                raise  # non-retriable
-
+                raise
             except Exception as exc:
                 last_error = exc
-                logger.warning(
-                    "pdf_download_error",
-                    extra={"url": url, "attempt": attempt + 1, "error": str(exc)},
-                )
+                logger.warning("pdf_download_error", extra={"url": url, "attempt": attempt + 1, "error": str(exc)})
                 continue
 
-        raise IOError(
-            f"Download failed after {len(_DOWNLOAD_RETRY_DELAYS)} attempts: {last_error}"
-        )
+        raise IOError(f"Download failed after {len(_DOWNLOAD_RETRY_DELAYS)} attempts: {last_error}")
 
     @staticmethod
     def filename_from_url(url: str) -> str:
@@ -196,6 +175,46 @@ class PDFScraper:
         if name.lower().endswith(".pdf") and len(name) > 4:
             return name
         return "document.pdf"
+
+    def fetch_html_page(self, url: str) -> Tuple[str, List[str], "requests.Session"]:
+        """
+        Fetch a webpage and return (plain_text, pdf_links, session).
+        The session carries cookies from the page visit — reuse it to download PDFs
+        so the server sees a consistent browser session (avoids 403s on CDN-protected PDFs).
+        """
+        session = self._make_session(url)
+        response = session.get(url, timeout=(10, 30), allow_redirects=True)
+        response.raise_for_status()
+
+        # Update referer to the final URL after redirects
+        session.headers.update({"Referer": response.url})
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Collect PDF links
+        pdf_links: List[str] = []
+        for tag in soup.find_all("a", href=True):
+            href = tag["href"].strip()
+            abs_href = urljoin(url, href)
+            if abs_href.lower().endswith(".pdf") or "/pdf" in abs_href.lower():
+                if abs_href not in pdf_links:
+                    pdf_links.append(abs_href)
+
+        # Also check <iframe>, <embed>, <object> src attributes
+        for tag in soup.find_all(["iframe", "embed", "object"], src=True):
+            src = tag.get("src", "").strip()
+            abs_src = urljoin(url, src)
+            if ".pdf" in abs_src.lower() and abs_src not in pdf_links:
+                pdf_links.append(abs_src)
+
+        # Extract readable text
+        for tag in soup(["script", "style", "nav", "header", "footer"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n", strip=True)
+        text = re.sub(r'\n{3,}', '\n\n', text)
+
+        logger.info("html_page_fetched", extra={"url": url, "pdf_links": len(pdf_links), "text_len": len(text)})
+        return text, pdf_links, session
 
     def extract_tables_to_dataframe(self, tables: List[List]) -> List[Dict[str, Any]]:
         structured_data: List[Dict[str, Any]] = []
@@ -210,8 +229,42 @@ class PDFScraper:
                 structured_data.extend(amrts_rows)
                 continue
 
-            headers = table_data[0]
-            rows = table_data[1:]
+            raw_headers = table_data[0]
+
+            # Validate: real column labels have ≤3 words and ≤50 chars.
+            # A 3-word header like "Net Income" or "Q1 2023" is fine;
+            # "Bureau of Labor Statistics" (4 words) or "Employment Situation Summary
+            # United States" (5 words) are document text masquerading as headers.
+            # Stop-word check: 3-word strings containing "of/the/and/for/from/by/with"
+            # are also likely title phrases, not column labels.
+            import re as _re
+            _STOP = _re.compile(r'\b(of|the|and|for|from|with|by|as|at|in|on|to)\b', _re.I)
+
+            def _is_label(h: Any) -> bool:
+                s = str(h).strip() if h else ""
+                words = s.split()
+                if len(words) > 3 or len(s) > 50:
+                    return False
+                if len(words) == 3 and _STOP.search(s):
+                    return False
+                # Reject pure-numeric cells — years and page numbers are not column headers
+                if _re.match(r'^\d+$', s):
+                    return False
+                # Reject cells that are mostly digits (e.g. "2026p", "2025u", "3a")
+                if len(s) <= 6 and s and sum(c.isdigit() for c in s) / len(s) >= 0.6:
+                    return False
+                return True
+
+            if all(_is_label(h) for h in raw_headers):
+                headers = raw_headers
+                rows = table_data[1:]
+            else:
+                logger.debug(
+                    "table_header_row_looks_like_content_using_generic_names",
+                    extra={"sample": str(raw_headers[:3])},
+                )
+                headers = [f"column_{i+1}" for i in range(len(raw_headers))]
+                rows = table_data  # first row is data, not a header
 
             for row in rows:
                 if len(row) == len(headers):

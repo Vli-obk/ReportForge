@@ -1,5 +1,5 @@
-import PageRouter from '../components/PageRouter';
+import { redirect } from 'next/navigation';
 
 export default function PipelinePage() {
-  return <PageRouter />;
+  redirect('/home/dashboard');
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import type { DragEvent } from 'react';
-import { Link as LinkIcon, FileText, Trash2, CheckCircle, XCircle, Clock, Upload } from 'lucide-react';
+import { Link as LinkIcon, FileText, Trash2, CheckCircle, XCircle, Clock, Upload, RefreshCw } from 'lucide-react';
 import { pdfAPI } from '@/lib/api';
 import type { PDFDocument } from '@/lib/api-types';
 import { useApiQuery } from '@/hooks/useApiQuery';
@@ -10,13 +10,23 @@ import { formatBytes, formatDate } from '@/lib/utils';
 import { PDFDetailsDrawer } from './EndpointWidgets';
 
 export default function UploadsPage() {
-  const { data: documentsData, loading, error, refetch } = useApiQuery('uploads-documents', (signal) => pdfAPI.getAll(0, 100, signal));
+  const { data: documentsData, loading, error, refetch } = useApiQuery(
+    'uploads-documents',
+    (signal) => pdfAPI.getAll(0, 100, signal),
+    { pollMs: 5000 }
+  );
   const documents = documentsData ?? [];
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [useOcr, setUseOcr] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const handleDrag = useCallback((e: DragEvent) => {
     e.preventDefault();
@@ -40,8 +50,10 @@ export default function UploadsPage() {
     try {
       await pdfAPI.upload(file, useOcr);
       await refetch();
-    } catch {
-      alert('Téléchargement échoué. Veuillez réessayer.');
+      showToast(`"${file.name}" téléchargé — traitement en cours...`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || 'Téléchargement échoué. Veuillez réessayer.';
+      alert(msg);
     } finally {
       setUploading(false);
     }
@@ -57,8 +69,10 @@ export default function UploadsPage() {
       await pdfAPI.scrape(urlInput, useOcr);
       setUrlInput('');
       await refetch();
-    } catch {
-      alert("Échec de la récupération du PDF depuis l'URL. Veuillez vérifier l'URL et réessayer.");
+      showToast('PDF récupéré — traitement en cours...');
+    } catch (err: any) {
+      const msg = err?.response?.data?.detail || "Échec de la récupération. Vérifiez l'URL.";
+      alert(msg);
     } finally {
       setUploading(false);
     }
@@ -75,11 +89,28 @@ export default function UploadsPage() {
     }
   };
 
+  const hasPending = documents.some(d => d.status === 'pending' || d.status === 'processing');
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold" style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}>Téléchargements</h1>
-        <p className="text-sm mt-2" style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}>Téléchargez des PDFs ou récupérez depuis des URLs</p>
+      {toast && (
+        <div className="fixed top-5 right-5 z-50 flex items-center gap-2 rounded-lg px-4 py-3 shadow-lg"
+          style={{ background: 'rgba(26,26,46,0.97)', border: '1px solid #4CAF50', color: '#4CAF50', fontFamily: 'JetBrains Mono, monospace', fontSize: '13px' }}>
+          <CheckCircle size={16} />
+          {toast}
+        </div>
+      )}
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold" style={{ color: 'var(--aluminum)', fontFamily: 'Manrope, sans-serif' }}>Téléchargements</h1>
+          <p className="text-sm mt-2" style={{ color: 'var(--aluminum-dim)', fontFamily: 'JetBrains Mono, monospace' }}>Téléchargez des PDFs ou récupérez depuis des URLs</p>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          {hasPending && <span className="text-xs animate-pulse" style={{ color: 'var(--orange)', fontFamily: 'JetBrains Mono, monospace' }}>traitement en cours...</span>}
+          <button onClick={() => refetch()} className="btn-secondary py-2 px-3 text-sm flex items-center gap-2" title="Actualiser">
+            <RefreshCw size={15} />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

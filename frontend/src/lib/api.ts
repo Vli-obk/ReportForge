@@ -144,6 +144,15 @@ export const aiAPI = {
 export const financialReportsAPI = {
   getAll: (signal?: AbortSignal) =>
     api.get<import('./api-types').FinancialReport[]>('/financial-reports/?limit=200', { signal }),
+
+};
+
+export const nlpAPI = {
+  getEntities: (pdfId: number, signal?: AbortSignal) =>
+    api.get<{ pdf_id: number; filename: string; text_length: number; entities: Record<string, string[]>; total: number }>(
+      `/nlp/${pdfId}/entities`,
+      { signal }
+    ),
 };
 
 export const geminiAPI = {
